@@ -1,0 +1,52 @@
+{
+    "manifestVersion": 1,
+    "id": "Test-Analisys",
+    "version": "0.1.1",
+    "name": "Solution to Analizes your Tests",
+    "description": "A sample Visual Studio Services extension.",
+    "publisher": "AviHadad",
+    "categories": [
+        "Plan and track"
+    ],
+    "targets": [
+        {
+            "id": "Microsoft.VisualStudio.Services",
+            "version": "[15.0,)"
+        }
+    ],
+    "icons": {
+        "default": "images/logo.png"
+    },
+    "contributions": [
+        {
+            "id": "Test.Analisys",
+            "type": "ms.vss-web.hub",
+            "description": "Adds a 'Analisys' hub to the test hub group.",
+            "targets": [
+                "ms.vss-test-web.test-hub-group"
+            ],
+            "properties": {
+                "name": "Analisys",
+                "order": 99,
+                "uri": "Test-Analisys.html"
+            }
+        }
+    ],
+    "scopes": [
+        "vso.loadtest"
+    ],
+    "files": [
+        {
+            "path": "Test-Analisys.html",
+            "addressable": true
+        },
+        {
+            "path": "sdk/scripts",
+            "addressable": true
+        },
+        {
+            "path": "images/logo.png",
+            "addressable": true
+        }
+    ]
+}
