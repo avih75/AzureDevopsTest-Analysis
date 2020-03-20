@@ -14,43 +14,48 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
         };
     }
     exports.getTeamContext = getTeamContext;
-    function show(divName, func) {
-        var elt = document.getElementById(divName);
-        var result = func(elt);
+    function show(JQElement, func) {
+        JQElement.hide();
+        $("#loading").show();
+        var result = func(JQElement);
     }
     exports.show = show;
-    function getAvailableBuildDefinitions(target) {
+    function getProjectTestPlanes(target) {
+        var planList = [];
         var client = TestRestClient.getClient();
         client.getPlans(getTeamContext().projectname).then(function (plans) {
-            target.innerText = JSON.stringify(plans);
+            plans.forEach(function (plan) {
+                planList.push(plan.id.toString() + ". " + plan.name);
+            });
         });
+        target.show();
+        $("#loading").hide();
     }
-    exports.getAvailableBuildDefinitions = getAvailableBuildDefinitions;
-    function getAvailableReleaseDefinitions(source, target) {
+    exports.getProjectTestPlanes = getProjectTestPlanes;
+    function getSuiteTestPoint(source, testPlaneId, suiteId, target) {
         var client = TestRestClient.getClient();
-        var planId = 1;
-        var suiteId = 1;
-        client.getPoints(getTeamContext().projectname, planId, suiteId).then(function (TestPoints) {
+        client.getPoints(getTeamContext().projectname, testPlaneId, suiteId).then(function (TestPoints) {
             TestPoints.forEach(function (testPoint) {
                 source.push({ id: testPoint.id, name: testPoint.testCase.name, outcome: testPoint.outcome });
             });
             target.setDataSource(source);
         });
     }
-    exports.getAvailableReleaseDefinitions = getAvailableReleaseDefinitions;
+    exports.getSuiteTestPoint = getSuiteTestPoint;
     var gridOptions = {
-        height: "300px",
-        width: "500px",
+        height: "600px",
+        width: "10000",
         source: source,
         columns: [
             { text: "ReleaseIdentifier", width: 200, index: "id" },
-            { text: "ReleaseName", width: 300, index: "name" },
-            { text: "ReleaseName", width: 200, index: "state" }
+            { text: "ReleaseName", width: 500, index: "name" },
+            { text: "ReleaseName", width: 300, index: "state" }
         ]
     };
     var container = $("#grid-container");
+    var selectPlane = $("#selectPlan");
     var source = new Array();
     var grid = Controls.create(Grids.Grid, container, gridOptions);
-    show("Tests", getAvailableBuildDefinitions);
-    getAvailableReleaseDefinitions(source, grid);
+    show(selectPlane, getProjectTestPlanes);
+    getSuiteTestPoint(source, 1, 1, grid);
 });

@@ -17,49 +17,54 @@ export function getTeamContext() {
     };
 }
 
-export function show(divName: string, func: (target: HTMLElement) => void) {
-    const elt = document.getElementById(divName)!;
-    let result = func(elt);
+export function show(JQElement: JQuery, func: (target: JQuery) => void) {
+    JQElement.hide();
+    $("#loading").show();
+    //const elt = document.getElementById(JQElement)!;
+    let result = func(JQElement);
 }
 
-export function getAvailableBuildDefinitions(target: HTMLElement): void {
-    // Get an instance of the client
+export function getProjectTestPlanes(target: JQuery): void {
+    let planList: string[] = [];
     let client = TestRestClient.getClient();
     client.getPlans(getTeamContext().projectname).then(plans => {
-        target.innerText = JSON.stringify(plans)
+        plans.forEach(plan => {
+            planList.push(plan.id.toString() + ". " + plan.name);
+        });
+        //target = JSON.stringify(planList)
     }
     );
-} 
+    target.show();
+    $("#loading").hide();
+}
 
-export function getAvailableReleaseDefinitions(source: Array<TestGrid>, target: Grids.Grid): void {
-    // Get an instance of the client
+export function getSuiteTestPoint(source: Array<TestGrid>, testPlaneId: number, suiteId: number, target: Grids.Grid): void {
     let client = TestRestClient.getClient();
-    let planId = 1;
-    let suiteId = 1;
-    client.getPoints(getTeamContext().projectname, planId, suiteId).then(TestPoints => {
+    client.getPoints(getTeamContext().projectname, testPlaneId, suiteId).then(TestPoints => {
         TestPoints.forEach(testPoint => {
             source.push({ id: testPoint.id, name: testPoint.testCase.name, outcome: testPoint.outcome });
-        }) 
+        })
         target.setDataSource(source);
     }
     );
 }
- 
+
 var gridOptions: Grids.IGridOptions = {
-    height: "300px",
-    width: "500px",
+    height: "600px",
+    width: "10000",
     source: source,
     columns: [
         { text: "ReleaseIdentifier", width: 200, index: "id" },
-        { text: "ReleaseName", width: 300, index: "name" },
-        { text: "ReleaseName", width: 200, index: "state" }
+        { text: "ReleaseName", width: 500, index: "name" },
+        { text: "ReleaseName", width: 300, index: "state" }
     ]
 };
- 
+
 var container = $("#grid-container");
+var selectPlane = $("#selectPlan");
 var source = new Array<TestGrid>();
 
 var grid = Controls.create(Grids.Grid, container, gridOptions);
-show("Tests", getAvailableBuildDefinitions);
-getAvailableReleaseDefinitions(source, grid);
+show(selectPlane, getProjectTestPlanes);
+getSuiteTestPoint(source, 1, 1, grid);
 
