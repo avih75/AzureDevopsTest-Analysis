@@ -8,7 +8,7 @@
 </head>
 
 <body style="height: 100%">
-	<h1>Test Analisys - on</h1>
+	<h1>Test Analisys</h1>
 	<script type="text/javascript">
 		VSS.init({
 			moduleLoaderConfig: true,
@@ -19,12 +19,18 @@
 		});</script>
 	<div id="Tests">
 		<b>Test Plans : </b>
-		<b id="loading">Loading....</b>
-		<select id="selectPlan">
-			
-		</select>
+		<b id="loading"> Loading....</b>
+		<select id="selectPlan" ></select>
 	</div> 
+	<div>
+		<input type="radio" id="male" name="view" value="Table">
+		<label for="Table">Table</label><br>
+		<input type="radio" id="female" name="view" value="Graphs">
+		<label for="Graphs">Graphs</label><br> 
+	</div>
+	<div id="PlanInfos"></div>
 	<div id="grid-container"></div>
+	<div id="graph-container"></div>
 	<script type="text/javascript">
 		VSS.require(["scripts/app"], function () {
 			VSS.notifyLoadSucceeded();
