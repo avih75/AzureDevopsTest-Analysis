@@ -1,7 +1,7 @@
 {
     "manifestVersion": 1,
     "id": "Test-Analisys",
-    "version": "0.1.36",
+    "version": "0.2.17",
     "name": "Solution to Analizes your Tests",
     "description": "A sample Visual Studio Services extension.",
     "publisher": "AviHadad",
@@ -33,6 +33,10 @@
         }
     ],
     "scopes": [
+        "vso.work", 
+        "vso.loadtest_write",
+        "vso.test",
+        "vso.test_write",
         "vso.loadtest"
     ],
     "files": [

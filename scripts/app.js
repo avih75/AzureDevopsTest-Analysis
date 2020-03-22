@@ -6,56 +6,45 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
         }
         return TestGrid;
     }());
-    function getTeamContext() {
-        var webcontext = VSS.getWebContext();
-        return {
-            projectname: webcontext.project.name,
-            teamId: webcontext.team.id
-        };
-    }
-    exports.getTeamContext = getTeamContext;
-    function show(JQElement, func) {
-        JQElement.hide();
+    function getProjectTestPlanes() {
+        var selectPlane = $("#selectPlan");
+        selectPlane.hide();
         $("#loading").show();
-        var result = func(JQElement);
-    }
-    exports.show = show;
-    function getProjectTestPlanes(target) {
         var planList = [];
+        planList.push("1. fake");
+        var opt = $("#selectPlan").append("<option />");
+        opt.text("1. fake");
+        var projectName = VSS.getWebContext().project.name;
         var client = TestRestClient.getClient();
-        client.getPlans(getTeamContext().projectname).then(function (plans) {
+        client._setInitializationPromise(client.authTokenManager.getAuthToken());
+        client.getPlans(projectName).then(function (plans) {
             plans.forEach(function (plan) {
-                planList.push(plan.id.toString() + ". " + plan.name);
+                planList.push(plan.id + ". " + plan.name);
+                var option = $("#selectPlan").append("<option />");
+                option.text(plan.id + ". " + plan.name);
             });
         });
-        target.show();
+        selectPlane.show();
         $("#loading").hide();
     }
     exports.getProjectTestPlanes = getProjectTestPlanes;
     function getSuiteTestPoint(source, testPlaneId, suiteId, target) {
-        var client = TestRestClient.getClient();
-        client.getPoints(getTeamContext().projectname, testPlaneId, suiteId).then(function (TestPoints) {
-            TestPoints.forEach(function (testPoint) {
-                source.push({ id: testPoint.id, name: testPoint.testCase.name, outcome: testPoint.outcome });
-            });
-            target.setDataSource(source);
-        });
+        var container = $("#grid-container");
+        var gridOptions = {
+            height: "600px",
+            width: "10000",
+            source: source,
+            columns: [
+                { text: "Test run Id", width: 200, index: "id" },
+                { text: "Test Name", width: 500, index: "name" },
+                { text: "State", width: 300, index: "state" }
+            ]
+        };
+        var source = new Array();
+        var grid = Controls.create(Grids.Grid, container, gridOptions);
     }
     exports.getSuiteTestPoint = getSuiteTestPoint;
-    var gridOptions = {
-        height: "600px",
-        width: "10000",
-        source: source,
-        columns: [
-            { text: "ReleaseIdentifier", width: 200, index: "id" },
-            { text: "ReleaseName", width: 500, index: "name" },
-            { text: "ReleaseName", width: 300, index: "state" }
-        ]
-    };
-    var container = $("#grid-container");
-    var selectPlane = $("#selectPlan");
-    var source = new Array();
-    var grid = Controls.create(Grids.Grid, container, gridOptions);
-    show(selectPlane, getProjectTestPlanes);
-    getSuiteTestPoint(source, 1, 1, grid);
+    var id = VSS.getContribution().id;
+    VSS.register(id, getProjectTestPlanes);
+    getProjectTestPlanes();
 });
