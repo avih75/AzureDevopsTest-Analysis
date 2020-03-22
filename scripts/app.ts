@@ -10,42 +10,19 @@ class TestGrid {
     outcome: string;
 }
 
-export function getProjectTestPlanes(): void {
-    var selectPlane = $("#selectPlan");
-    selectPlane.hide();
-    $("#loading").show();
-    let planList: string[] = [];
-    planList.push("1. fake");
-    let opt = $("#selectPlan").append("<option />")
-    opt.text("1. fake");
+export function getProjectTestPlanes(): void {  
+    $("#selectPlan").append(new Option("fake","1")); 
+    // add on selected
     var projectName = VSS.getWebContext().project.name;
     let client = TestRestClient.getClient();
-    client._setInitializationPromise(client.authTokenManager.getAuthToken());
-    // client.authTokenManager.getAuthToken().then((token) => {
-    //     let x = client.authTokenManager.getAuthorizationHeader(token);        
+    client._setInitializationPromise(client.authTokenManager.getAuthToken());    
     client.getPlans(projectName).then((plans) => {
-        plans.forEach(plan => {
-            planList.push(plan.id + ". " + plan.name);
-            let option = $("#selectPlan").append("<option />")
-            option.text(plan.id + ". " + plan.name);
+        plans.forEach(plan => { 
+            $("#selectPlan").append(new Option(plan.name,plan.id.toString())); 
         });
-    })
-    // })
-
-    // VSS.require(["VSS/Service", "TFS/TestManagement/RestClient"], function (VSS_Service, TFS_test_WebApi) {
-    //     // Get the REST client
-    //     var testClient = VSS_Service.getCollectionClient(TFS_test_WebApi.TestHttpClient2_2);
-    //     testClient.getPlans(projectName).then((plans) => {
-    //         plans.forEach(plan => {
-    //             planList.push(plan.id + ". " + plan.name);
-    //             let option = $("#selectPlan").append("<option />")
-    //             option.text(plan.id + ". " + plan.name);
-    //         });
-    //     })
-    // });
-
-    selectPlane.show();
+    })  
     $("#loading").hide();
+    // set selected plane
     // getSuiteTestPoint(source, 31, 31, grid);
 }
 
@@ -73,6 +50,5 @@ export function getSuiteTestPoint(source: Array<TestGrid>, testPlaneId: number, 
 }
 var id = VSS.getContribution().id;
 VSS.register(id, getProjectTestPlanes);
-
 
 getProjectTestPlanes();

@@ -7,24 +7,15 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
         return TestGrid;
     }());
     function getProjectTestPlanes() {
-        var selectPlane = $("#selectPlan");
-        selectPlane.hide();
-        $("#loading").show();
-        var planList = [];
-        planList.push("1. fake");
-        var opt = $("#selectPlan").append("<option />");
-        opt.text("1. fake");
+        $("#selectPlan").append(new Option("fake", "1"));
         var projectName = VSS.getWebContext().project.name;
         var client = TestRestClient.getClient();
         client._setInitializationPromise(client.authTokenManager.getAuthToken());
         client.getPlans(projectName).then(function (plans) {
             plans.forEach(function (plan) {
-                planList.push(plan.id + ". " + plan.name);
-                var option = $("#selectPlan").append("<option />");
-                option.text(plan.id + ". " + plan.name);
+                $("#selectPlan").append(new Option(plan.name, plan.id.toString()));
             });
         });
-        selectPlane.show();
         $("#loading").hide();
     }
     exports.getProjectTestPlanes = getProjectTestPlanes;
