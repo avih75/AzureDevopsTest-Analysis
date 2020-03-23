@@ -78,8 +78,7 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
             "    Iteration: " + selectedPlane.iteration +
             "    Start Date: " + selectedPlane.startDate +
             "    State: " + selectedPlane.state));
-        return GetTestSuiteInfos(projectName, testPlaneId)
-            .then(function (palneFullInfo) { return palneFullInfo; });
+        return GetTestSuiteInfos(projectName, testPlaneId);
     }
     function GetTestSuiteInfos(projectName, testPlaneId) {
         var palneFullInfo = new Array();
@@ -115,8 +114,8 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
         });
     }
     function TestCaseInfos(projectName, testPlaneId, suiteId) {
-        var TestCaseList = new Array();
         return client.getTestCases(projectName, +testPlaneId, +suiteId).then(function (testCases) {
+            var TestCaseList = new Array();
             testCases.forEach(function (testCase) {
                 var pointTesterName;
                 var pointConfigurationName;
@@ -132,13 +131,12 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
                 };
                 TestCaseList.push(newTestCase);
             });
-        }).then(function () {
             return TestCaseList;
         });
     }
     function PointsInfos(projectName, testPlaneId, suiteId) {
-        var testPointList = new Array();
         return client.getPoints(projectName, +testPlaneId, +suiteId).then(function (points) {
+            var testPointList = new Array();
             points.forEach(function (point) {
                 testPointList.push({
                     suite: point.suite.name,
@@ -151,7 +149,6 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
                     failureType: point.failureType,
                 });
             });
-        }).then(function () {
             return testPointList;
         });
     }

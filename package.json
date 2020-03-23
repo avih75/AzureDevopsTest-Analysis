@@ -30,6 +30,8 @@
   },
   "dependencies": {
     "chart.js": "^2.9.3",
+    "es6-promise": "^4.2.8",
+    "ts-promise": "^2.2.0",
     "vss-sdk": "^1.94.1",
     "vss-web-extension-sdk": "^5.141.0"
   },

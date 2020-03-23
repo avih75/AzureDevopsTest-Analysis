@@ -1,7 +1,7 @@
 import TestRestClient = require("TFS/TestManagement/RestClient");
 import Controls = require("VSS/Controls");
 import Grids = require("VSS/Controls/Grids");
-import { TestPlan, TestSuite } from "TFS/TestManagement/Contracts";
+import { TestPlan, TestSuite } from "TFS/TestManagement/Contracts"; 
 class TestPointModel {
     state: string;
     lastTestRun: string;
@@ -89,8 +89,7 @@ function GetTestPlaneInfo(selectedPlane: TestPlan, testPlaneId: string, planInfo
         "    Iteration: " + selectedPlane.iteration +
         "    Start Date: " + selectedPlane.startDate +
         "    State: " + selectedPlane.state));
-    return GetTestSuiteInfos(projectName, testPlaneId)
-        .then((palneFullInfo) => { return palneFullInfo; });
+    return GetTestSuiteInfos(projectName, testPlaneId);
 }
 function GetTestSuiteInfos(projectName: string, testPlaneId: string) {
     let palneFullInfo: Array<TestSuiteModel> = new Array<TestSuiteModel>();
@@ -125,8 +124,8 @@ function GetTestSuiteInfos(projectName: string, testPlaneId: string) {
     })
 }
 function TestCaseInfos(projectName: string, testPlaneId: string, suiteId: string) {
-    let TestCaseList = new Array<TestCaseModel>();
     return client.getTestCases(projectName, +testPlaneId, +suiteId).then((testCases) => {
+        let TestCaseList = new Array<TestCaseModel>();
         testCases.forEach(testCase => {
             let pointTesterName: string;
             let pointConfigurationName: string;
@@ -142,13 +141,12 @@ function TestCaseInfos(projectName: string, testPlaneId: string, suiteId: string
             }
             TestCaseList.push(newTestCase);
         });
-    }).then(() => {
-        return TestCaseList
-    })
+        return TestCaseList;
+    });
 }
 function PointsInfos(projectName: string, testPlaneId: string, suiteId: string) {
-    let testPointList = new Array<TestPointModel>();
     return client.getPoints(projectName, +testPlaneId, +suiteId).then((points) => {
+        let testPointList = new Array<TestPointModel>();
         points.forEach(point => {
             testPointList.push({
                 suite: point.suite.name,
@@ -161,7 +159,6 @@ function PointsInfos(projectName: string, testPlaneId: string, suiteId: string) 
                 failureType: point.failureType,
             });
         });
-    }).then(() => {
         return testPointList;
     })
 }
