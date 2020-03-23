@@ -1,7 +1,8 @@
 import TestRestClient = require("TFS/TestManagement/RestClient");
 import Controls = require("VSS/Controls");
 import Grids = require("VSS/Controls/Grids");
-import { TestPlan, TestSuite } from "TFS/TestManagement/Contracts"; 
+import { TestPlan, TestSuite } from "TFS/TestManagement/Contracts";
+import { Promise } from "q";
 class TestPointModel {
     state: string;
     lastTestRun: string;
@@ -79,7 +80,6 @@ function BuildTableTestGrid(projectName: string, testPlaneId: string): void {
     planInfo.empty();
     client.getPlanById(projectName, +testPlaneId)
         .then((selectedPlane) => GetTestPlaneInfo(selectedPlane, testPlaneId, planInfo, projectName))
-        .then((palneFullInfo) => ReArangeSuiteList(palneFullInfo))
         .then((palneFullInfo) => CreateTableView(palneFullInfo, container));
 }
 function GetTestPlaneInfo(selectedPlane: TestPlan, testPlaneId: string, planInfo: JQuery, projectName: string) {
@@ -93,105 +93,160 @@ function GetTestPlaneInfo(selectedPlane: TestPlan, testPlaneId: string, planInfo
 }
 function GetTestSuiteInfos(projectName: string, testPlaneId: string) {
     let palneFullInfo: Array<TestSuiteModel> = new Array<TestSuiteModel>();
+    let promiseCascade: PromiseLike<void>;
     return client.getTestSuitesForPlan(projectName, +testPlaneId).then((suites) => {
-        suites.forEach(suite => {
-            let newSuite: TestSuiteModel = new TestSuiteModel();
-            newSuite.suiteId = suite.id;
-            try {
-                newSuite.perentId = suite.parent.id;
-            }
-            catch {
-                newSuite.perentId = "0";
-            };
-            newSuite.suiteName = suite.name;
-            newSuite.suiteState = suite.state;
-            newSuite.childrenSuites = Array<TestSuiteModel>();
-            TestCaseInfos(projectName, testPlaneId, suite.id.toString())
-                .then((testCases) => {
-                    newSuite.testCaseList = testCases;
-                })
-                .then(() => {
-                    return PointsInfos(projectName, testPlaneId, newSuite.suiteId.toString());
-                }).then((testPointList) => {
-                    newSuite.testpoints = testPointList;
-                })
-                .then(() => {
-                    palneFullInfo.push(newSuite);
-                })
-        })
+        if (suites.length > 0) {
+            suites.forEach(suite => {
+                let newSuite: TestSuiteModel = new TestSuiteModel();
+                newSuite.suiteId = suite.id;
+                try {
+                    newSuite.perentId = suite.parent.id;
+                }
+                catch {
+                    newSuite.perentId = "0";
+                };
+                newSuite.suiteName = suite.name;
+                newSuite.suiteState = suite.state;
+                newSuite.childrenSuites = Array<TestSuiteModel>();
+                if (promiseCascade == undefined)
+                    promiseCascade = (TestCaseInfos(projectName, testPlaneId, suite.id.toString(), newSuite, palneFullInfo));
+                else
+                    promiseCascade = (promiseCascade.then(() => (TestCaseInfos(projectName, testPlaneId, suite.id.toString(), newSuite, palneFullInfo))))
+            });
+        }
     }).then(() => {
-        return palneFullInfo;
+        return promiseCascade.then(() => ReArangeSuiteList(palneFullInfo))
     })
 }
-function TestCaseInfos(projectName: string, testPlaneId: string, suiteId: string) {
+function TestCaseInfos(projectName: string, testPlaneId: string, suiteId: string, newSuite: TestSuiteModel, palneFullInfo: Array<TestSuiteModel>) {
+    let promiseCascade: PromiseLike<void>;
     return client.getTestCases(projectName, +testPlaneId, +suiteId).then((testCases) => {
-        let TestCaseList = new Array<TestCaseModel>();
-        testCases.forEach(testCase => {
-            let pointTesterName: string;
-            let pointConfigurationName: string;
-            testCase.pointAssignments.forEach(point => {
-                pointTesterName = point.tester.uniqueName;
-                pointConfigurationName = point.configuration.name;
+        if (testCases.length > 0) {
+            let TestCaseList = new Array<TestCaseModel>();
+            testCases.forEach(testCase => {
+                let pointTesterName: string;
+                let pointConfigurationName: string;
+                testCase.pointAssignments.forEach(point => {
+                    pointTesterName = point.tester.uniqueName;
+                    pointConfigurationName = point.configuration.id;
+                });
+                let newTestCase: TestCaseModel = {
+                    lastTestPoint: new TestPointModel,
+                    testCaseName: testCase.testCase.name,
+                    pointTesterName: pointTesterName,
+                    pointConfigurationName: pointConfigurationName
+                }
+                if (promiseCascade == undefined)
+                    promiseCascade = GetPointByID(projectName, testPlaneId, suiteId, pointConfigurationName, newTestCase)
+                else
+                    promiseCascade = promiseCascade.then(() => GetPointByID(projectName, testPlaneId, suiteId, pointConfigurationName, newTestCase))
             });
-            let newTestCase: TestCaseModel = {
-                lastTestPoint: new TestPointModel,
-                testCaseName: testCase.testCase.name,
-                pointTesterName: pointTesterName,
-                pointConfigurationName: pointConfigurationName
-            }
-            TestCaseList.push(newTestCase);
-        });
-        return TestCaseList;
-    });
-}
-function PointsInfos(projectName: string, testPlaneId: string, suiteId: string) {
-    return client.getPoints(projectName, +testPlaneId, +suiteId).then((points) => {
-        let testPointList = new Array<TestPointModel>();
-        points.forEach(point => {
-            testPointList.push({
-                suite: point.suite.name,
-                testCase: point.testCase.name,
-                state: point.lastResultState,
-                outCome: point.outcome,
-                lastTestRun: point.lastTestRun.name,
-                assignedTo: point.assignedTo.displayName,
-                comment: point.comment,
-                failureType: point.failureType,
+            promiseCascade = promiseCascade.then(() => {
+                newSuite.testCaseList = TestCaseList;
             });
-        });
-        return testPointList;
+        }
+    }).then(() => {
+        return promiseCascade;
     })
 }
-function ReArangeSuiteList(palneFullInfo: Array<TestSuiteModel>) {
-    return palneFullInfo;
-}
-function CreateTableView(palneFullInfo: Array<TestSuiteModel>, container: JQuery) {
-    {
-        // try to show the info
-        var gridOptions: Grids.IGridOptions = {
-            height: "600px",
-            width: "17000",
-            source: palneFullInfo,
-            columns: [
-                { text: "Suite", width: 200, index: "suite" },
-                { text: "Test Case", width: 200, index: "testCase" },
-                { text: "State", width: 100, index: "state" },
-                { text: "Out-Come", width: 100, index: "outCome" },
-                { text: "Last Test Run", width: 200, index: "lastTestRun" },
-                { text: "Assigned-To", width: 200, index: "assignedTo" },
-                { text: "Comment", width: 500, index: "comment" },
-                { text: "Failure Type", width: 200, index: "failureType" }
-            ]
-        };
-        var target = Controls.create(Grids.Grid, container, gridOptions);
-        target.setDataSource(palneFullInfo);
+function GetPointByID(projectName: string, testPlaneId: string, suiteId: string, pointId: string, newTestCase: TestCaseModel) {
+
+    try {
+
+        return client.getPoint(projectName, +testPlaneId, +suiteId, +pointId).then((point) => {
+
+            newTestCase.lastTestPoint = {
+
+                suite: point.suite.name,
+
+                testCase: point.testCase.name,
+
+                state: point.lastResultState,
+
+                outCome: point.outcome,
+
+                lastTestRun: point.lastTestRun.name,
+
+                assignedTo: point.assignedTo.displayName,
+
+                comment: point.comment,
+
+                failureType: point.failureType,
+
+            }
+
+        })
+
     }
+
+    catch{
+
+    }
+
 }
+
+function ReArangeSuiteList(palneFullInfo: Array<TestSuiteModel>) {
+
+    return palneFullInfo;
+
+}
+
+function CreateTableView(palneFullInfo: Array<TestSuiteModel>, container: JQuery) {
+
+    {
+
+        // try to show the info
+
+        var gridOptions: Grids.IGridOptions = {
+
+            height: "600px",
+
+            width: "17000",
+
+            source: palneFullInfo,
+
+            columns: [
+
+                { text: "Suite", width: 200, index: "suite" },
+
+                { text: "Test Case", width: 200, index: "testCase" },
+
+                { text: "State", width: 100, index: "state" },
+
+                { text: "Out-Come", width: 100, index: "outCome" },
+
+                { text: "Last Test Run", width: 200, index: "lastTestRun" },
+
+                { text: "Assigned-To", width: 200, index: "assignedTo" },
+
+                { text: "Comment", width: 500, index: "comment" },
+
+                { text: "Failure Type", width: 200, index: "failureType" }
+
+            ]
+
+        };
+
+        var target = Controls.create(Grids.Grid, container, gridOptions);
+
+        target.setDataSource(palneFullInfo);
+
+    }
+
+}
+
 function BuildGraph(testPlaneId: string) {
+
     var container = $("#graph-container");
+
     container.empty();
+
 }
+
 var id = VSS.getContribution().id;
+
 VSS.register(id, Init_Page);
+
 VSS.resize();
+
 Init_Page();

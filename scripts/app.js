@@ -68,7 +68,6 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
         planInfo.empty();
         client.getPlanById(projectName, +testPlaneId)
             .then(function (selectedPlane) { return GetTestPlaneInfo(selectedPlane, testPlaneId, planInfo, projectName); })
-            .then(function (palneFullInfo) { return ReArangeSuiteList(palneFullInfo); })
             .then(function (palneFullInfo) { return CreateTableView(palneFullInfo, container); });
     }
     function GetTestPlaneInfo(selectedPlane, testPlaneId, planInfo, projectName) {
@@ -82,63 +81,67 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
     }
     function GetTestSuiteInfos(projectName, testPlaneId) {
         var palneFullInfo = new Array();
+        var promiseCascade;
         return client.getTestSuitesForPlan(projectName, +testPlaneId).then(function (suites) {
-            suites.forEach(function (suite) {
-                var newSuite = new TestSuiteModel();
-                newSuite.suiteId = suite.id;
-                try {
-                    newSuite.perentId = suite.parent.id;
-                }
-                catch (_a) {
-                    newSuite.perentId = "0";
-                }
-                ;
-                newSuite.suiteName = suite.name;
-                newSuite.suiteState = suite.state;
-                newSuite.childrenSuites = Array();
-                TestCaseInfos(projectName, testPlaneId, suite.id.toString())
-                    .then(function (testCases) {
-                    newSuite.testCaseList = testCases;
-                })
-                    .then(function () {
-                    return PointsInfos(projectName, testPlaneId, newSuite.suiteId.toString());
-                }).then(function (testPointList) {
-                    newSuite.testpoints = testPointList;
-                })
-                    .then(function () {
-                    palneFullInfo.push(newSuite);
+            if (suites.length > 0) {
+                suites.forEach(function (suite) {
+                    var newSuite = new TestSuiteModel();
+                    newSuite.suiteId = suite.id;
+                    try {
+                        newSuite.perentId = suite.parent.id;
+                    }
+                    catch (_a) {
+                        newSuite.perentId = "0";
+                    }
+                    ;
+                    newSuite.suiteName = suite.name;
+                    newSuite.suiteState = suite.state;
+                    newSuite.childrenSuites = Array();
+                    if (promiseCascade == undefined)
+                        promiseCascade = (TestCaseInfos(projectName, testPlaneId, suite.id.toString(), newSuite, palneFullInfo));
+                    else
+                        promiseCascade = (promiseCascade.then(function () { return (TestCaseInfos(projectName, testPlaneId, suite.id.toString(), newSuite, palneFullInfo)); }));
                 });
-            });
+            }
         }).then(function () {
-            return palneFullInfo;
+            return promiseCascade.then(function () { return ReArangeSuiteList(palneFullInfo); });
         });
     }
-    function TestCaseInfos(projectName, testPlaneId, suiteId) {
+    function TestCaseInfos(projectName, testPlaneId, suiteId, newSuite, palneFullInfo) {
+        var promiseCascade;
         return client.getTestCases(projectName, +testPlaneId, +suiteId).then(function (testCases) {
-            var TestCaseList = new Array();
-            testCases.forEach(function (testCase) {
-                var pointTesterName;
-                var pointConfigurationName;
-                testCase.pointAssignments.forEach(function (point) {
-                    pointTesterName = point.tester.uniqueName;
-                    pointConfigurationName = point.configuration.name;
+            if (testCases.length > 0) {
+                var TestCaseList_1 = new Array();
+                testCases.forEach(function (testCase) {
+                    var pointTesterName;
+                    var pointConfigurationName;
+                    testCase.pointAssignments.forEach(function (point) {
+                        pointTesterName = point.tester.uniqueName;
+                        pointConfigurationName = point.configuration.id;
+                    });
+                    var newTestCase = {
+                        lastTestPoint: new TestPointModel,
+                        testCaseName: testCase.testCase.name,
+                        pointTesterName: pointTesterName,
+                        pointConfigurationName: pointConfigurationName
+                    };
+                    if (promiseCascade == undefined)
+                        promiseCascade = GetPointByID(projectName, testPlaneId, suiteId, pointConfigurationName, newTestCase);
+                    else
+                        promiseCascade = promiseCascade.then(function () { return GetPointByID(projectName, testPlaneId, suiteId, pointConfigurationName, newTestCase); });
                 });
-                var newTestCase = {
-                    lastTestPoint: new TestPointModel,
-                    testCaseName: testCase.testCase.name,
-                    pointTesterName: pointTesterName,
-                    pointConfigurationName: pointConfigurationName
-                };
-                TestCaseList.push(newTestCase);
-            });
-            return TestCaseList;
+                promiseCascade = promiseCascade.then(function () {
+                    newSuite.testCaseList = TestCaseList_1;
+                });
+            }
+        }).then(function () {
+            return promiseCascade;
         });
     }
-    function PointsInfos(projectName, testPlaneId, suiteId) {
-        return client.getPoints(projectName, +testPlaneId, +suiteId).then(function (points) {
-            var testPointList = new Array();
-            points.forEach(function (point) {
-                testPointList.push({
+    function GetPointByID(projectName, testPlaneId, suiteId, pointId, newTestCase) {
+        try {
+            return client.getPoint(projectName, +testPlaneId, +suiteId, +pointId).then(function (point) {
+                newTestCase.lastTestPoint = {
                     suite: point.suite.name,
                     testCase: point.testCase.name,
                     state: point.lastResultState,
@@ -147,10 +150,11 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
                     assignedTo: point.assignedTo.displayName,
                     comment: point.comment,
                     failureType: point.failureType,
-                });
+                };
             });
-            return testPointList;
-        });
+        }
+        catch (_a) {
+        }
     }
     function ReArangeSuiteList(palneFullInfo) {
         return palneFullInfo;
