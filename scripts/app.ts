@@ -71,17 +71,17 @@ function BuildSelect(projectName: string, selectPlan: JQuery) {
         BuildGraph(lastPlan);
     })
 }
-function BuildTableTestGrid(projectName: string, testPlaneId: string): void {
+function BuildTableTestGrid(projectName: string, testPlaneId: number): void {
     let container = $("#grid-container");
     let planInfo = $("#PlanInfos");
     container.empty();
     planInfo.empty();
-    client.getPlanById(projectName, +testPlaneId)
+    client.getPlanById(projectName, testPlaneId)
         .then((selectedPlane) => GetTestPlaneInfo2(selectedPlane, testPlaneId, planInfo, projectName))
         .then((palneFullInfo) => CreateTableView(palneFullInfo));
 
 }
-function GetTestPlaneInfo2(selectedPlane: TestPlan, testPlaneId: string, planInfo: JQuery, projectName: string) {
+const GetTestPlaneInfo2 = async (selectedPlane: TestPlan, testPlaneId: number, planInfo: JQuery, projectName: string) => {
     planInfo.append($("<h4 />").text("project: " + projectName +
         "    Plane: " + testPlaneId +
         "    Root Suite: " + selectedPlane.rootSuite.name +
@@ -89,9 +89,9 @@ function GetTestPlaneInfo2(selectedPlane: TestPlan, testPlaneId: string, planInf
         "    Start Date: " + selectedPlane.startDate +
         "    State: " + selectedPlane.state));
     let palneFullInfo: Array<TestSuiteModel> = new Array<TestSuiteModel>();
-    client.getTestSuitesForPlan(projectName, +testPlaneId).then((suites) => {
+    await client.getTestSuitesForPlan(projectName, testPlaneId).then((suites) => {
         if (suites.length > 0) {
-            suites.forEach(suite => {
+            suites.forEach(async (suite) => {
                 let newSuite: TestSuiteModel = new TestSuiteModel();
                 newSuite.suiteId = suite.id;
                 try {
@@ -103,16 +103,16 @@ function GetTestPlaneInfo2(selectedPlane: TestPlan, testPlaneId: string, planInf
                 newSuite.suiteName = suite.name;
                 newSuite.suiteState = suite.state;
                 newSuite.childrenSuites = Array<TestSuiteModel>();
-                newSuite.testCaseList = await TestCaseInfos2(projectName, testPlaneId, suiteId);
+                newSuite.testCaseList = await TestCaseInfos2(projectName, testPlaneId, newSuite.suiteId);
             });
         }
     })
     return ReArangeSuiteList(palneFullInfo);
 
 }
-const TestCaseInfos2 = async (projectName: string, testPlaneId: string, suiteId: string) => {
+const TestCaseInfos2 = async (projectName: string, testPlaneId: number, suiteId: number) => {
     let TestCaseList = new Array<TestCaseModel>();
-    client.getTestCases(projectName, +testPlaneId, +suiteId).then((testCases) => {
+    await client.getTestCases(projectName, testPlaneId, suiteId).then((testCases) => {
         if (testCases.length > 0) {
             testCases.forEach(async testCase => {
                 let newTestCase: TestCaseModel = new TestCaseModel();
@@ -126,10 +126,10 @@ const TestCaseInfos2 = async (projectName: string, testPlaneId: string, suiteId:
     })
     return TestCaseList;
 };
-const GetPointByID2 = async (projectName: string, testPlaneId: string, suiteId: number, testCaseId: string) => {
+const GetPointByID2 = async (projectName: string, testPlaneId: number, suiteId: number, testCaseId: string) => {
     let newTestPoint: TestPointModel = new TestPointModel();
     try {
-        client.getPoints(projectName, testPlaneId, suiteId).then((testPoints) => {
+        await client.getPoints(projectName, testPlaneId, suiteId).then((testPoints) => {
             if (testPoints.length > 0) {
                 testPoints.forEach(testPoint => {
                     if (testPoint.testCase.id == testCaseId) {
@@ -149,89 +149,89 @@ const GetPointByID2 = async (projectName: string, testPlaneId: string, suiteId: 
         return newTestPoint;
     }
 }
-function GetTestPlaneInfo(selectedPlane: TestPlan, testPlaneId: string, planInfo: JQuery, projectName: string) {
-    planInfo.append($("<h4 />").text("project: " + projectName +
-        "    Plane: " + testPlaneId +
-        "    Root Suite: " + selectedPlane.rootSuite.name +
-        "    Iteration: " + selectedPlane.iteration +
-        "    Start Date: " + selectedPlane.startDate +
-        "    State: " + selectedPlane.state));
-    let palneFullInfo: Array<TestSuiteModel> = new Array<TestSuiteModel>();
-    let promiseCascade: PromiseLike<void>;
-    client.getTestSuitesForPlan(projectName, +testPlaneId).then((suites) => {
-        if (suites.length > 0) {
-            suites.forEach(suite => {
+// function GetTestPlaneInfo(selectedPlane: TestPlan, testPlaneId: string, planInfo: JQuery, projectName: string) {
+//     planInfo.append($("<h4 />").text("project: " + projectName +
+//         "    Plane: " + testPlaneId +
+//         "    Root Suite: " + selectedPlane.rootSuite.name +
+//         "    Iteration: " + selectedPlane.iteration +
+//         "    Start Date: " + selectedPlane.startDate +
+//         "    State: " + selectedPlane.state));
+//     let palneFullInfo: Array<TestSuiteModel> = new Array<TestSuiteModel>();
+//     let promiseCascade: PromiseLike<void>;
+//     client.getTestSuitesForPlan(projectName, +testPlaneId).then((suites) => {
+//         if (suites.length > 0) {
+//             suites.forEach(suite => {
 
-                let newSuite: TestSuiteModel = new TestSuiteModel();
-                newSuite.suiteId = suite.id;
-                try {
-                    newSuite.perentId = suite.parent.id;
-                }
-                catch {
-                    newSuite.perentId = "0";
-                };
-                newSuite.suiteName = suite.name;
-                newSuite.suiteState = suite.state;
-                newSuite.childrenSuites = Array<TestSuiteModel>();
-                if (promiseCascade == undefined)
-                    promiseCascade = (TestCaseInfos(projectName, testPlaneId, suite.id.toString(), newSuite, palneFullInfo));
-                else
-                    promiseCascade = (promiseCascade.then(() => (TestCaseInfos(projectName, testPlaneId, suite.id.toString(), newSuite, palneFullInfo))))
-            });
-        }
-    }).then(() => {
-        (promiseCascade.then(() => ReArangeSuiteList(palneFullInfo))).then((palneFullInfo) => CreateTableView(palneFullInfo));
-    })
-}
-function TestCaseInfos(projectName: string, testPlaneId: string, suiteId: string, newSuite: TestSuiteModel, palneFullInfo: Array<TestSuiteModel>) {
-    let promiseCascade: PromiseLike<void>;
-    return client.getTestCases(projectName, +testPlaneId, +suiteId).then((testCases) => {
-        if (testCases.length > 0) {
-            let TestCaseList = new Array<TestCaseModel>();
-            testCases.forEach(testCase => {
-                let pointTesterName: string;
-                let pointConfigurationName: string;
-                testCase.pointAssignments.forEach(point => {
-                    pointTesterName = point.tester.uniqueName;
-                    pointConfigurationName = point.configuration.id;
-                });
-                let newTestCase: TestCaseModel = {
-                    lastTestPoint: new TestPointModel,
-                    testCaseName: testCase.testCase.name,
-                    pointTesterName: pointTesterName,
-                    pointConfigurationName: pointConfigurationName
-                }
-                if (promiseCascade == undefined)
-                    promiseCascade = (GetPointByID(projectName, testPlaneId, suiteId, pointConfigurationName, newTestCase))
-                else
-                    promiseCascade = promiseCascade.then(() => GetPointByID(projectName, testPlaneId, suiteId, pointConfigurationName, newTestCase))
-            });
-            promiseCascade = promiseCascade.then(() => {
-                newSuite.testCaseList = TestCaseList;
-            });
-        }
-    }).then(() => {
-        return promiseCascade;
-    })
-};
-function GetPointByID(projectName: string, testPlaneId: string, suiteId: string, pointId: string, newTestCase: TestCaseModel) {
-    try {
-        return client.getPoint(projectName, +testPlaneId, +suiteId, +pointId).then((point) => {
-            newTestCase.lastTestPoint = {
-                suite: point.suite.name,
-                testCase: point.testCase.name,
-                state: point.lastResultState,
-                outCome: point.outcome,
-                lastTestRun: point.lastTestRun.name,
-                assignedTo: point.assignedTo.displayName,
-                comment: point.comment,
-                failureType: point.failureType,
-            }
-        });
-    }
-    catch{
-    }
-}
+//                 let newSuite: TestSuiteModel = new TestSuiteModel();
+//                 newSuite.suiteId = suite.id;
+//                 try {
+//                     newSuite.perentId = suite.parent.id;
+//                 }
+//                 catch {
+//                     newSuite.perentId = "0";
+//                 };
+//                 newSuite.suiteName = suite.name;
+//                 newSuite.suiteState = suite.state;
+//                 newSuite.childrenSuites = Array<TestSuiteModel>();
+//                 if (promiseCascade == undefined)
+//                     promiseCascade = (TestCaseInfos(projectName, testPlaneId, suite.id.toString(), newSuite, palneFullInfo));
+//                 else
+//                     promiseCascade = (promiseCascade.then(() => (TestCaseInfos(projectName, testPlaneId, suite.id.toString(), newSuite, palneFullInfo))))
+//             });
+//         }
+//     }).then(() => {
+//         (promiseCascade.then(() => ReArangeSuiteList(palneFullInfo))).then((palneFullInfo) => CreateTableView(palneFullInfo));
+//     })
+// }
+// function TestCaseInfos(projectName: string, testPlaneId: string, suiteId: string, newSuite: TestSuiteModel, palneFullInfo: Array<TestSuiteModel>) {
+//     let promiseCascade: PromiseLike<void>;
+//     return client.getTestCases(projectName, +testPlaneId, +suiteId).then((testCases) => {
+//         if (testCases.length > 0) {
+//             let TestCaseList = new Array<TestCaseModel>();
+//             testCases.forEach(testCase => {
+//                 let pointTesterName: string;
+//                 let pointConfigurationName: string;
+//                 testCase.pointAssignments.forEach(point => {
+//                     pointTesterName = point.tester.uniqueName;
+//                     pointConfigurationName = point.configuration.id;
+//                 });
+//                 let newTestCase: TestCaseModel = {
+//                     lastTestPoint: new TestPointModel,
+//                     testCaseName: testCase.testCase.name,
+//                     pointTesterName: pointTesterName,
+//                     pointConfigurationName: pointConfigurationName
+//                 }
+//                 if (promiseCascade == undefined)
+//                     promiseCascade = (GetPointByID(projectName, testPlaneId, suiteId, pointConfigurationName, newTestCase))
+//                 else
+//                     promiseCascade = promiseCascade.then(() => GetPointByID(projectName, testPlaneId, suiteId, pointConfigurationName, newTestCase))
+//             });
+//             promiseCascade = promiseCascade.then(() => {
+//                 newSuite.testCaseList = TestCaseList;
+//             });
+//         }
+//     }).then(() => {
+//         return promiseCascade;
+//     })
+// };
+// function GetPointByID(projectName: string, testPlaneId: string, suiteId: string, pointId: string, newTestCase: TestCaseModel) {
+//     try {
+//         return client.getPoint(projectName, +testPlaneId, +suiteId, +pointId).then((point) => {
+//             newTestCase.lastTestPoint = {
+//                 suite: point.suite.name,
+//                 testCase: point.testCase.name,
+//                 state: point.lastResultState,
+//                 outCome: point.outcome,
+//                 lastTestRun: point.lastTestRun.name,
+//                 assignedTo: point.assignedTo.displayName,
+//                 comment: point.comment,
+//                 failureType: point.failureType,
+//             }
+//         });
+//     }
+//     catch{
+//     }
+// }
 function ReArangeSuiteList(palneFullInfo: Array<TestSuiteModel>) {
     return palneFullInfo;
 }

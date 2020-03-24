@@ -65,11 +65,11 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
         let planInfo = $("#PlanInfos");
         container.empty();
         planInfo.empty();
-        client.getPlanById(projectName, +testPlaneId)
+        client.getPlanById(projectName, testPlaneId)
             .then((selectedPlane) => GetTestPlaneInfo2(selectedPlane, testPlaneId, planInfo, projectName))
             .then((palneFullInfo) => CreateTableView(palneFullInfo));
     }
-    function GetTestPlaneInfo2(selectedPlane, testPlaneId, planInfo, projectName) {
+    const GetTestPlaneInfo2 = (selectedPlane, testPlaneId, planInfo, projectName) => __awaiter(this, void 0, void 0, function* () {
         planInfo.append($("<h4 />").text("project: " + projectName +
             "    Plane: " + testPlaneId +
             "    Root Suite: " + selectedPlane.rootSuite.name +
@@ -77,9 +77,9 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
             "    Start Date: " + selectedPlane.startDate +
             "    State: " + selectedPlane.state));
         let palneFullInfo = new Array();
-        client.getTestSuitesForPlan(projectName, +testPlaneId).then((suites) => {
+        yield client.getTestSuitesForPlan(projectName, testPlaneId).then((suites) => {
             if (suites.length > 0) {
-                suites.forEach(suite => {
+                suites.forEach((suite) => __awaiter(this, void 0, void 0, function* () {
                     let newSuite = new TestSuiteModel();
                     newSuite.suiteId = suite.id;
                     try {
@@ -92,16 +92,15 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
                     newSuite.suiteName = suite.name;
                     newSuite.suiteState = suite.state;
                     newSuite.childrenSuites = Array();
-                    newSuite.testCaseList = yield TestCaseInfos2(projectName, testPlaneId, suiteId);
-                });
+                    newSuite.testCaseList = yield TestCaseInfos2(projectName, testPlaneId, newSuite.suiteId);
+                }));
             }
-        }).then(() => {
-            return ReArangeSuiteList(palneFullInfo);
         });
-    }
+        return ReArangeSuiteList(palneFullInfo);
+    });
     const TestCaseInfos2 = (projectName, testPlaneId, suiteId) => __awaiter(this, void 0, void 0, function* () {
         let TestCaseList = new Array();
-        client.getTestCases(projectName, +testPlaneId, +suiteId).then((testCases) => {
+        yield client.getTestCases(projectName, testPlaneId, suiteId).then((testCases) => {
             if (testCases.length > 0) {
                 testCases.forEach((testCase) => __awaiter(this, void 0, void 0, function* () {
                     let newTestCase = new TestCaseModel();
@@ -118,7 +117,7 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
     const GetPointByID2 = (projectName, testPlaneId, suiteId, testCaseId) => __awaiter(this, void 0, void 0, function* () {
         let newTestPoint = new TestPointModel();
         try {
-            client.getPoints(projectName, testPlaneId, suiteId).then((testPoints) => {
+            yield client.getPoints(projectName, testPlaneId, suiteId).then((testPoints) => {
                 if (testPoints.length > 0) {
                     testPoints.forEach(testPoint => {
                         if (testPoint.testCase.id == testCaseId) {
