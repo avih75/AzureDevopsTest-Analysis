@@ -55,7 +55,7 @@ function BuildRadioButton() {
 function BuildSelect(projectName: string, selectPlan: JQuery) {
     selectPlan.change(function () {
         let selectedPlane = $(this).children("option:selected").val();
-        BuildTableTestGrid(projectName, selectedPlane);
+        BuildTableTestGrid2(projectName, selectedPlane);
         BuildGraph(selectedPlane);
     });
     client._setInitializationPromise(client.authTokenManager.getAuthToken());
@@ -67,20 +67,29 @@ function BuildSelect(projectName: string, selectPlan: JQuery) {
         });
         $("#loading").hide();
         selectPlan.show();
-        BuildTableTestGrid(projectName, lastPlan);
+        BuildTableTestGrid2(projectName, lastPlan);
         BuildGraph(lastPlan);
     })
 }
-function BuildTableTestGrid(projectName: string, testPlaneId: number): void {
+async function BuildTableTestGrid2(projectName: string, testPlaneId: number): Promise<void> {
     let container = $("#grid-container");
     let planInfo = $("#PlanInfos");
     container.empty();
     planInfo.empty();
-    client.getPlanById(projectName, testPlaneId)
-        .then((selectedPlane) => GetTestPlaneInfo2(selectedPlane, testPlaneId, planInfo, projectName))
-        .then((palneFullInfo) => CreateTableView(palneFullInfo));
-
+    let selectedPlane = await client.getPlanById(projectName, testPlaneId);
+    let palneFullInfo = await GetTestPlaneInfo2(selectedPlane, testPlaneId, planInfo, projectName)
+    palneFullInfo = ReArangeSuiteList(palneFullInfo);
+    CreateTableView(palneFullInfo);
 }
+// function BuildTableTestGrid(projectName: string, testPlaneId: number): void {
+//     let container = $("#grid-container");
+//     let planInfo = $("#PlanInfos");
+//     container.empty();
+//     planInfo.empty();
+//     client.getPlanById(projectName, testPlaneId)
+//         .then((selectedPlane) => GetTestPlaneInfo(selectedPlane, testPlaneId, planInfo, projectName))
+//         .then((palneFullInfo) => CreateTableView(palneFullInfo));
+// }
 const GetTestPlaneInfo2 = async (selectedPlane: TestPlan, testPlaneId: number, planInfo: JQuery, projectName: string) => {
     planInfo.append($("<h4 />").text("project: " + projectName +
         "    Plane: " + testPlaneId +
@@ -89,60 +98,57 @@ const GetTestPlaneInfo2 = async (selectedPlane: TestPlan, testPlaneId: number, p
         "    Start Date: " + selectedPlane.startDate +
         "    State: " + selectedPlane.state));
     let palneFullInfo: Array<TestSuiteModel> = new Array<TestSuiteModel>();
-    await client.getTestSuitesForPlan(projectName, testPlaneId).then((suites) => {
-        if (suites.length > 0) {
-            suites.forEach(async (suite) => {
-                let newSuite: TestSuiteModel = new TestSuiteModel();
-                newSuite.suiteId = suite.id;
-                try {
-                    newSuite.perentId = suite.parent.id;
-                }
-                catch {
-                    newSuite.perentId = "0";
-                };
-                newSuite.suiteName = suite.name;
-                newSuite.suiteState = suite.state;
-                newSuite.childrenSuites = Array<TestSuiteModel>();
-                newSuite.testCaseList = await TestCaseInfos2(projectName, testPlaneId, newSuite.suiteId);
-            });
-        }
-    })
-    return ReArangeSuiteList(palneFullInfo);
-
+    let suites = await client.getTestSuitesForPlan(projectName, testPlaneId);
+    if (suites.length > 0) {
+        suites.forEach(async (suite) => {
+            let newSuite: TestSuiteModel = new TestSuiteModel();
+            newSuite.suiteId = suite.id;
+            try {
+                newSuite.perentId = suite.parent.id;
+            }
+            catch {
+                newSuite.perentId = "0";
+            };
+            newSuite.suiteName = suite.name;
+            newSuite.suiteState = suite.state;
+            newSuite.childrenSuites = Array<TestSuiteModel>();
+            newSuite.testCaseList = await TestCaseInfos2(projectName, testPlaneId, suite.id);
+            palneFullInfo.push(newSuite);
+        });      
+    }    
+    return palneFullInfo;
 }
 const TestCaseInfos2 = async (projectName: string, testPlaneId: number, suiteId: number) => {
     let TestCaseList = new Array<TestCaseModel>();
-    await client.getTestCases(projectName, testPlaneId, suiteId).then((testCases) => {
-        if (testCases.length > 0) {
-            testCases.forEach(async testCase => {
-                let newTestCase: TestCaseModel = new TestCaseModel();
-                newTestCase.testCaseType = testCase.testCase.type;
-                newTestCase.testCaseId = testCase.testCase.id;
-                newTestCase.testCaseName = testCase.testCase.name;
-                newTestCase.testPoint = await GetPointByID2(projectName, testPlaneId, suiteId, newTestCase.testCaseId)
-                TestCaseList.push(newTestCase);
-            })
-        }
-    })
+    let testCases = await client.getTestCases(projectName, testPlaneId, suiteId);
+    if (testCases.length > 0) {
+        testCases.forEach(async testCase => {
+            let newTestCase: TestCaseModel = new TestCaseModel();
+            newTestCase.testCaseType = testCase.testCase.type;
+            newTestCase.testCaseId = testCase.testCase.id;
+            newTestCase.testCaseName = testCase.testCase.name;
+            newTestCase.testPoint = await GetPointByID2(projectName, testPlaneId, suiteId, newTestCase.testCaseId)
+            TestCaseList.push(newTestCase);
+        })
+    }
     return TestCaseList;
 };
 const GetPointByID2 = async (projectName: string, testPlaneId: number, suiteId: number, testCaseId: string) => {
     let newTestPoint: TestPointModel = new TestPointModel();
     try {
-        await client.getPoints(projectName, testPlaneId, suiteId).then((testPoints) => {
-            if (testPoints.length > 0) {
-                testPoints.forEach(testPoint => {
-                    if (testPoint.testCase.id == testCaseId) {
-                        newTestPoint.lastTestRun = testPoint.lastTestRun.id;
-                        newTestPoint.assignedTo = testPoint.assignedTo.displayName;
-                        newTestPoint.comment = testPoint.comment;
-                        newTestPoint.failureType = testPoint.failureType;
-                        newTestPoint.outCome = testPoint.outcome;
-                        newTestPoint.state = testPoint.state;
-                    }
-                });
-            }
-        })
+        let testPoints = await client.getPoints(projectName, testPlaneId, suiteId);
+        if (testPoints.length > 0) {
+            testPoints.forEach(testPoint => {
+                if (testPoint.testCase.id == testCaseId) {
+                    newTestPoint.lastTestRun = testPoint.lastTestRun.id;
+                    newTestPoint.assignedTo = testPoint.assignedTo.displayName;
+                    newTestPoint.comment = testPoint.comment;
+                    newTestPoint.failureType = testPoint.failureType;
+                    newTestPoint.outCome = testPoint.outcome;
+                    newTestPoint.state = testPoint.state;
+                }
+            });
+        }
         return newTestPoint;
     }
     catch{

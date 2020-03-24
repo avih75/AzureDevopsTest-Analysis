@@ -1,7 +1,7 @@
 {
     "manifestVersion": 1,
     "id": "Test-Analisys",
-    "version": "0.2.64",
+    "version": "0.2.71",
     "name": "Solution to Analizes your Tests",
     "description": "A sample Visual Studio Services extension.",
     "publisher": "AviHadad",

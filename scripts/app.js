@@ -44,7 +44,7 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
     function BuildSelect(projectName, selectPlan) {
         selectPlan.change(function () {
             let selectedPlane = $(this).children("option:selected").val();
-            BuildTableTestGrid(projectName, selectedPlane);
+            BuildTableTestGrid2(projectName, selectedPlane);
             BuildGraph(selectedPlane);
         });
         client._setInitializationPromise(client.authTokenManager.getAuthToken());
@@ -56,18 +56,21 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
             });
             $("#loading").hide();
             selectPlan.show();
-            BuildTableTestGrid(projectName, lastPlan);
+            BuildTableTestGrid2(projectName, lastPlan);
             BuildGraph(lastPlan);
         });
     }
-    function BuildTableTestGrid(projectName, testPlaneId) {
-        let container = $("#grid-container");
-        let planInfo = $("#PlanInfos");
-        container.empty();
-        planInfo.empty();
-        client.getPlanById(projectName, testPlaneId)
-            .then((selectedPlane) => GetTestPlaneInfo2(selectedPlane, testPlaneId, planInfo, projectName))
-            .then((palneFullInfo) => CreateTableView(palneFullInfo));
+    function BuildTableTestGrid2(projectName, testPlaneId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let container = $("#grid-container");
+            let planInfo = $("#PlanInfos");
+            container.empty();
+            planInfo.empty();
+            let selectedPlane = yield client.getPlanById(projectName, testPlaneId);
+            let palneFullInfo = yield GetTestPlaneInfo2(selectedPlane, testPlaneId, planInfo, projectName);
+            palneFullInfo = ReArangeSuiteList(palneFullInfo);
+            CreateTableView(palneFullInfo);
+        });
     }
     const GetTestPlaneInfo2 = (selectedPlane, testPlaneId, planInfo, projectName) => __awaiter(this, void 0, void 0, function* () {
         planInfo.append($("<h4 />").text("project: " + projectName +
@@ -77,63 +80,61 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
             "    Start Date: " + selectedPlane.startDate +
             "    State: " + selectedPlane.state));
         let palneFullInfo = new Array();
-        yield client.getTestSuitesForPlan(projectName, testPlaneId).then((suites) => {
-            if (suites.length > 0) {
-                suites.forEach((suite) => __awaiter(this, void 0, void 0, function* () {
-                    let newSuite = new TestSuiteModel();
-                    newSuite.suiteId = suite.id;
-                    try {
-                        newSuite.perentId = suite.parent.id;
-                    }
-                    catch (_a) {
-                        newSuite.perentId = "0";
-                    }
-                    ;
-                    newSuite.suiteName = suite.name;
-                    newSuite.suiteState = suite.state;
-                    newSuite.childrenSuites = Array();
-                    newSuite.testCaseList = yield TestCaseInfos2(projectName, testPlaneId, newSuite.suiteId);
-                }));
-            }
-        });
-        return ReArangeSuiteList(palneFullInfo);
+        let suites = yield client.getTestSuitesForPlan(projectName, testPlaneId);
+        if (suites.length > 0) {
+            suites.forEach((suite) => __awaiter(this, void 0, void 0, function* () {
+                let newSuite = new TestSuiteModel();
+                newSuite.suiteId = suite.id;
+                try {
+                    newSuite.perentId = suite.parent.id;
+                }
+                catch (_a) {
+                    newSuite.perentId = "0";
+                }
+                ;
+                newSuite.suiteName = suite.name;
+                newSuite.suiteState = suite.state;
+                newSuite.childrenSuites = Array();
+                newSuite.testCaseList = yield TestCaseInfos2(projectName, testPlaneId, suite.id);
+                palneFullInfo.push(newSuite);
+            }));
+        }
+        return palneFullInfo;
     });
     const TestCaseInfos2 = (projectName, testPlaneId, suiteId) => __awaiter(this, void 0, void 0, function* () {
         let TestCaseList = new Array();
-        yield client.getTestCases(projectName, testPlaneId, suiteId).then((testCases) => {
-            if (testCases.length > 0) {
-                testCases.forEach((testCase) => __awaiter(this, void 0, void 0, function* () {
-                    let newTestCase = new TestCaseModel();
-                    newTestCase.testCaseType = testCase.testCase.type;
-                    newTestCase.testCaseId = testCase.testCase.id;
-                    newTestCase.testCaseName = testCase.testCase.name;
-                    newTestCase.testPoint = yield GetPointByID2(projectName, testPlaneId, suiteId, newTestCase.testCaseId);
-                    TestCaseList.push(newTestCase);
-                }));
-            }
-        });
+        let testCases = yield client.getTestCases(projectName, testPlaneId, suiteId);
+        if (testCases.length > 0) {
+            testCases.forEach((testCase) => __awaiter(this, void 0, void 0, function* () {
+                let newTestCase = new TestCaseModel();
+                newTestCase.testCaseType = testCase.testCase.type;
+                newTestCase.testCaseId = testCase.testCase.id;
+                newTestCase.testCaseName = testCase.testCase.name;
+                newTestCase.testPoint = yield GetPointByID2(projectName, testPlaneId, suiteId, newTestCase.testCaseId);
+                TestCaseList.push(newTestCase);
+            }));
+        }
         return TestCaseList;
     });
     const GetPointByID2 = (projectName, testPlaneId, suiteId, testCaseId) => __awaiter(this, void 0, void 0, function* () {
         let newTestPoint = new TestPointModel();
         try {
-            yield client.getPoints(projectName, testPlaneId, suiteId).then((testPoints) => {
-                if (testPoints.length > 0) {
-                    testPoints.forEach(testPoint => {
-                        if (testPoint.testCase.id == testCaseId) {
-                            newTestPoint.lastTestRun = testPoint.lastTestRun.id;
-                            newTestPoint.assignedTo = testPoint.assignedTo.displayName;
-                            newTestPoint.comment = testPoint.comment;
-                            newTestPoint.failureType = testPoint.failureType;
-                            newTestPoint.outCome = testPoint.outcome;
-                            newTestPoint.state = testPoint.state;
-                        }
-                    });
-                }
-            });
+            let testPoints = yield client.getPoints(projectName, testPlaneId, suiteId);
+            if (testPoints.length > 0) {
+                testPoints.forEach(testPoint => {
+                    if (testPoint.testCase.id == testCaseId) {
+                        newTestPoint.lastTestRun = testPoint.lastTestRun.id;
+                        newTestPoint.assignedTo = testPoint.assignedTo.displayName;
+                        newTestPoint.comment = testPoint.comment;
+                        newTestPoint.failureType = testPoint.failureType;
+                        newTestPoint.outCome = testPoint.outcome;
+                        newTestPoint.state = testPoint.state;
+                    }
+                });
+            }
             return newTestPoint;
         }
-        catch (_a) {
+        catch (_b) {
             return newTestPoint;
         }
     });
