@@ -1,25 +1,24 @@
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "VSS/Controls/Grids"], function (require, exports, TestRestClient, Controls, Grids) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    var TestPointModel = (function () {
-        function TestPointModel() {
-        }
-        return TestPointModel;
-    }());
-    var TestCaseModel = (function () {
-        function TestCaseModel() {
-        }
-        return TestCaseModel;
-    }());
-    var TestSuiteModel = (function () {
-        function TestSuiteModel() {
-        }
-        return TestSuiteModel;
-    }());
-    var client;
+    let client;
+    class TestPointModel {
+    }
+    class TestCaseModel {
+    }
+    class TestSuiteModel {
+    }
     function Init_Page() {
         client = TestRestClient.getClient();
-        var selectPlan = $("#selectPlan");
+        let selectPlan = $("#selectPlan");
         $("#graph-container").hide();
         $("#grid-container").hide();
         $("#PlanInfos").hide();
@@ -44,14 +43,14 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
     }
     function BuildSelect(projectName, selectPlan) {
         selectPlan.change(function () {
-            var selectedPlane = $(this).children("option:selected").val();
+            let selectedPlane = $(this).children("option:selected").val();
             BuildTableTestGrid(projectName, selectedPlane);
             BuildGraph(selectedPlane);
         });
         client._setInitializationPromise(client.authTokenManager.getAuthToken());
-        client.getPlans(projectName).then(function (plans) {
-            var lastPlan;
-            plans.forEach(function (plan) {
+        client.getPlans(projectName).then((plans) => {
+            let lastPlan;
+            plans.forEach(plan => {
                 selectPlan.append(new Option(plan.name, plan.id.toString()));
                 lastPlan = plan.id;
             });
@@ -62,30 +61,26 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
         });
     }
     function BuildTableTestGrid(projectName, testPlaneId) {
-        var container = $("#grid-container");
-        var planInfo = $("#PlanInfos");
+        let container = $("#grid-container");
+        let planInfo = $("#PlanInfos");
         container.empty();
         planInfo.empty();
         client.getPlanById(projectName, +testPlaneId)
-            .then(function (selectedPlane) { return GetTestPlaneInfo(selectedPlane, testPlaneId, planInfo, projectName); })
-            .then(function (palneFullInfo) { return CreateTableView(palneFullInfo, container); });
+            .then((selectedPlane) => GetTestPlaneInfo2(selectedPlane, testPlaneId, planInfo, projectName))
+            .then((palneFullInfo) => CreateTableView(palneFullInfo));
     }
-    function GetTestPlaneInfo(selectedPlane, testPlaneId, planInfo, projectName) {
+    function GetTestPlaneInfo2(selectedPlane, testPlaneId, planInfo, projectName) {
         planInfo.append($("<h4 />").text("project: " + projectName +
             "    Plane: " + testPlaneId +
             "    Root Suite: " + selectedPlane.rootSuite.name +
             "    Iteration: " + selectedPlane.iteration +
             "    Start Date: " + selectedPlane.startDate +
             "    State: " + selectedPlane.state));
-        return GetTestSuiteInfos(projectName, testPlaneId);
-    }
-    function GetTestSuiteInfos(projectName, testPlaneId) {
-        var palneFullInfo = new Array();
-        var promiseCascade;
-        return client.getTestSuitesForPlan(projectName, +testPlaneId).then(function (suites) {
+        let palneFullInfo = new Array();
+        client.getTestSuitesForPlan(projectName, +testPlaneId).then((suites) => {
             if (suites.length > 0) {
-                suites.forEach(function (suite) {
-                    var newSuite = new TestSuiteModel();
+                suites.forEach(suite => {
+                    let newSuite = new TestSuiteModel();
                     newSuite.suiteId = suite.id;
                     try {
                         newSuite.perentId = suite.parent.id;
@@ -97,70 +92,58 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
                     newSuite.suiteName = suite.name;
                     newSuite.suiteState = suite.state;
                     newSuite.childrenSuites = Array();
-                    if (promiseCascade == undefined)
-                        promiseCascade = (TestCaseInfos(projectName, testPlaneId, suite.id.toString(), newSuite, palneFullInfo));
-                    else
-                        promiseCascade = (promiseCascade.then(function () { return (TestCaseInfos(projectName, testPlaneId, suite.id.toString(), newSuite, palneFullInfo)); }));
+                    newSuite.testCaseList = yield TestCaseInfos2(projectName, testPlaneId, suiteId);
                 });
             }
-        }).then(function () {
-            return promiseCascade.then(function () { return ReArangeSuiteList(palneFullInfo); });
+        }).then(() => {
+            return ReArangeSuiteList(palneFullInfo);
         });
     }
-    function TestCaseInfos(projectName, testPlaneId, suiteId, newSuite, palneFullInfo) {
-        var promiseCascade;
-        return client.getTestCases(projectName, +testPlaneId, +suiteId).then(function (testCases) {
+    const TestCaseInfos2 = (projectName, testPlaneId, suiteId) => __awaiter(this, void 0, void 0, function* () {
+        let TestCaseList = new Array();
+        client.getTestCases(projectName, +testPlaneId, +suiteId).then((testCases) => {
             if (testCases.length > 0) {
-                var TestCaseList_1 = new Array();
-                testCases.forEach(function (testCase) {
-                    var pointTesterName;
-                    var pointConfigurationName;
-                    testCase.pointAssignments.forEach(function (point) {
-                        pointTesterName = point.tester.uniqueName;
-                        pointConfigurationName = point.configuration.id;
-                    });
-                    var newTestCase = {
-                        lastTestPoint: new TestPointModel,
-                        testCaseName: testCase.testCase.name,
-                        pointTesterName: pointTesterName,
-                        pointConfigurationName: pointConfigurationName
-                    };
-                    if (promiseCascade == undefined)
-                        promiseCascade = GetPointByID(projectName, testPlaneId, suiteId, pointConfigurationName, newTestCase);
-                    else
-                        promiseCascade = promiseCascade.then(function () { return GetPointByID(projectName, testPlaneId, suiteId, pointConfigurationName, newTestCase); });
-                });
-                promiseCascade = promiseCascade.then(function () {
-                    newSuite.testCaseList = TestCaseList_1;
-                });
+                testCases.forEach((testCase) => __awaiter(this, void 0, void 0, function* () {
+                    let newTestCase = new TestCaseModel();
+                    newTestCase.testCaseType = testCase.testCase.type;
+                    newTestCase.testCaseId = testCase.testCase.id;
+                    newTestCase.testCaseName = testCase.testCase.name;
+                    newTestCase.testPoint = yield GetPointByID2(projectName, testPlaneId, suiteId, newTestCase.testCaseId);
+                    TestCaseList.push(newTestCase);
+                }));
             }
-        }).then(function () {
-            return promiseCascade;
         });
-    }
-    function GetPointByID(projectName, testPlaneId, suiteId, pointId, newTestCase) {
+        return TestCaseList;
+    });
+    const GetPointByID2 = (projectName, testPlaneId, suiteId, testCaseId) => __awaiter(this, void 0, void 0, function* () {
+        let newTestPoint = new TestPointModel();
         try {
-            return client.getPoint(projectName, +testPlaneId, +suiteId, +pointId).then(function (point) {
-                newTestCase.lastTestPoint = {
-                    suite: point.suite.name,
-                    testCase: point.testCase.name,
-                    state: point.lastResultState,
-                    outCome: point.outcome,
-                    lastTestRun: point.lastTestRun.name,
-                    assignedTo: point.assignedTo.displayName,
-                    comment: point.comment,
-                    failureType: point.failureType,
-                };
+            client.getPoints(projectName, testPlaneId, suiteId).then((testPoints) => {
+                if (testPoints.length > 0) {
+                    testPoints.forEach(testPoint => {
+                        if (testPoint.testCase.id == testCaseId) {
+                            newTestPoint.lastTestRun = testPoint.lastTestRun.id;
+                            newTestPoint.assignedTo = testPoint.assignedTo.displayName;
+                            newTestPoint.comment = testPoint.comment;
+                            newTestPoint.failureType = testPoint.failureType;
+                            newTestPoint.outCome = testPoint.outcome;
+                            newTestPoint.state = testPoint.state;
+                        }
+                    });
+                }
             });
+            return newTestPoint;
         }
         catch (_a) {
+            return newTestPoint;
         }
-    }
+    });
     function ReArangeSuiteList(palneFullInfo) {
         return palneFullInfo;
     }
-    function CreateTableView(palneFullInfo, container) {
+    function CreateTableView(palneFullInfo) {
         {
+            let container = $("#grid-container");
             var gridOptions = {
                 height: "600px",
                 width: "17000",

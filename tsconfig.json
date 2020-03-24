@@ -3,7 +3,7 @@
         "module": "amd",
         "sourceMap": false,
         "moduleResolution": "node",
-        "target": "es5",
+        "target": "es6",
         "rootDir": "./scripts",
         "types": [
             "jquery",
@@ -12,7 +12,8 @@
         ],
         "lib": [
             "dom",
-            "es5"
+            "es5",
+            "es2015" 
         ]
     }
 }
