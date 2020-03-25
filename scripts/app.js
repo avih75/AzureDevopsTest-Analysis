@@ -68,8 +68,9 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
             planInfo.empty();
             let selectedPlane = yield client.getPlanById(projectName, testPlaneId);
             let palneFullInfo = yield GetTestPlaneInfo(selectedPlane, testPlaneId, planInfo, projectName);
-            palneFullInfo = ReArangeSuiteList(palneFullInfo);
-            CreateTableView(palneFullInfo);
+            let rootTestCase = ReArangeSuiteList(palneFullInfo);
+            CreateTableView(rootTestCase);
+            BuildGraph(palneFullInfo);
         });
     }
     function GetTestPlaneInfo(selectedPlane, testPlaneId, planInfo, projectName) {
@@ -121,7 +122,13 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
                 newTestCase.testCaseType = testCase.testCase.type;
                 newTestCase.testCaseId = testCase.testCase.id;
                 newTestCase.testCaseName = testCase.testCase.name;
-                newTestCase.testPoint = yield GetPointByID(projectName, testPlaneId, suiteId, newTestCase.testCaseId);
+                let testPoint = yield GetPointByID(projectName, testPlaneId, suiteId, newTestCase.testCaseId);
+                newTestCase.state = testPoint.state;
+                newTestCase.outCome = testPoint.outCome;
+                newTestCase.lastTestRun = testPoint.lastTestRun;
+                newTestCase.assignedTo = testPoint.assignedTo;
+                newTestCase.comment = testPoint.comment;
+                newTestCase.failureType = testPoint.failureType;
                 TestCaseList.push(newTestCase);
             }
             return TestCaseList;
@@ -153,31 +160,87 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
         });
     }
     function ReArangeSuiteList(palneFullInfo) {
-        return palneFullInfo;
+        let rootSuite;
+        palneFullInfo.forEach(TestSuiteChilde => {
+            if (+TestSuiteChilde.perentId > 0) {
+                palneFullInfo.forEach(TestSiuteFather => {
+                    if (+TestSuiteChilde.perentId == TestSiuteFather.suiteId) {
+                        TestSiuteFather.childrenSuites.push(TestSuiteChilde);
+                    }
+                });
+            }
+            else {
+                rootSuite = TestSuiteChilde;
+            }
+        });
+        return rootSuite;
     }
-    function CreateTableView(palneFullInfo) {
+    function CreateTableView(rootTestCase) {
+        let MasterDiv = $("#grid-container");
+        let container = CreateSuiteView(rootTestCase);
+        MasterDiv.append(container);
+    }
+    function CreateSuiteView(rootTestCase) {
+        let container = $("<div />");
+        let SuiteDiv = $("<div />");
+        let ChildrenDiv = $("<div />");
+        let TestPointDiv;
+        var gridTestSuiteOptions = {
+            height: "40",
+            width: "10000",
+            source: [rootTestCase],
+            header: false,
+            columns: [
+                { text: "Suite ID", width: 50, index: "suiteId" },
+                { text: "State", width: 100, index: "suiteState" },
+                { text: "Suite Name", width: 200, index: "suiteName" }
+            ]
+        };
+        var target = Controls.create(Grids.Grid, SuiteDiv, gridTestSuiteOptions);
+        target.setDataSource([TestSuiteModel]);
+        if (rootTestCase.childrenSuites != undefined && rootTestCase.childrenSuites.length > 0) {
+            rootTestCase.childrenSuites.forEach(child => {
+                let childDiv = CreateSuiteView(child);
+                ChildrenDiv.append(childDiv);
+            });
+        }
+        if (rootTestCase.testCaseList != undefined && rootTestCase.testCaseList.length > 0) {
+            TestPointDiv = CreateTestCasesView(rootTestCase.testCaseList);
+        }
+        container.append(SuiteDiv);
+        container.append($("<br />"));
+        container.append(ChildrenDiv);
+        container.append($("<br />"));
+        container.append(TestPointDiv);
+        return container;
+    }
+    function CreateTestCasesView(pointList) {
         {
-            let container = $("#grid-container");
-            var gridOptions = {
-                height: "600px",
+            let container = $("<div />");
+            var gridTestCaseOptions = {
+                height: (40 * pointList.length).toString(),
                 width: "10000",
-                source: palneFullInfo,
-                expandStates: [4, 5, 6],
-                extendViewportBy: 10,
+                source: pointList,
+                extendViewportBy: pointList.length,
+                header: false,
                 columns: [
-                    { text: "Suite", width: 50, index: "suiteId" },
-                    { text: "State", width: 70, index: "suiteState" },
-                    { text: "Test Case", width: 200, index: "suiteName" },
-                    { text: "Test Case", width: 200, index: "childrenSuites" },
-                    { text: "Test Case", width: 200, index: "testCaseList" },
-                    { text: "Test Case", width: 200, index: "testpoints" },
+                    { text: "Test Case ID", width: 100, index: "testCaseId" },
+                    { text: "Test Case Name", width: 100, index: "testCaseName" },
+                    { text: "Test Case Type", width: 100, index: "testCaseType" },
+                    { text: "State", width: 100, index: "state" },
+                    { text: "OutCome", width: 100, index: "outCome" },
+                    { text: "Last Test Run", width: 200, index: "lastTestRun" },
+                    { text: "Assigned To", width: 200, index: "assignedTo" },
+                    { text: "Comment", width: 200, index: "comment" },
+                    { text: "Failure Type", width: 200, index: "failureType" },
                 ]
             };
-            var target = Controls.create(Grids.Grid, container, gridOptions);
-            target.setDataSource(palneFullInfo);
+            var target = Controls.create(Grids.Grid, container, gridTestCaseOptions);
+            target.setDataSource(pointList);
+            return container;
         }
     }
-    function BuildGraph(testPlaneId) {
+    function BuildGraph(palneFullInfo) {
         var container = $("#graph-container");
         container.empty();
     }
