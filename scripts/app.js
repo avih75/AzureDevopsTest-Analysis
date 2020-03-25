@@ -82,23 +82,30 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
         let palneFullInfo = new Array();
         let suites = yield client.getTestSuitesForPlan(projectName, testPlaneId);
         if (suites.length > 0) {
-            suites.forEach((suite) => __awaiter(this, void 0, void 0, function* () {
-                let newSuite = new TestSuiteModel();
-                newSuite.suiteId = suite.id;
-                try {
-                    newSuite.perentId = suite.parent.id;
-                }
-                catch (_a) {
-                    newSuite.perentId = "0";
-                }
-                ;
-                newSuite.suiteName = suite.name;
-                newSuite.suiteState = suite.state;
-                newSuite.childrenSuites = Array();
-                newSuite.testCaseList = yield TestCaseInfos2(projectName, testPlaneId, suite.id);
-                palneFullInfo.push(newSuite);
-            }));
+            palneFullInfo = yield GetTestSuites2(suites, projectName, testPlaneId);
         }
+        else {
+            return palneFullInfo;
+        }
+    });
+    const GetTestSuites2 = (suites, projectName, testPlaneId) => __awaiter(this, void 0, void 0, function* () {
+        let palneFullInfo = new Array();
+        suites.forEach((suite) => __awaiter(this, void 0, void 0, function* () {
+            let newSuite = new TestSuiteModel();
+            newSuite.suiteId = suite.id;
+            try {
+                newSuite.perentId = suite.parent.id;
+            }
+            catch (_a) {
+                newSuite.perentId = "0";
+            }
+            ;
+            newSuite.suiteName = suite.name;
+            newSuite.suiteState = suite.state;
+            newSuite.childrenSuites = Array();
+            newSuite.testCaseList = yield TestCaseInfos2(projectName, testPlaneId, suite.id);
+            palneFullInfo.push(newSuite);
+        }));
         return palneFullInfo;
     });
     const TestCaseInfos2 = (projectName, testPlaneId, suiteId) => __awaiter(this, void 0, void 0, function* () {

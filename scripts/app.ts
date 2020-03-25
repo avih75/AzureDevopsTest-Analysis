@@ -1,7 +1,7 @@
 import TestRestClient = require("TFS/TestManagement/RestClient");
 import Controls = require("VSS/Controls");
 import Grids = require("VSS/Controls/Grids");
-import { TestPlan } from "TFS/TestManagement/Contracts";
+import { TestPlan, TestSuite } from "TFS/TestManagement/Contracts";
 import { async } from "q";
 let client: TestRestClient.TestHttpClient4_1;
 class TestPointModel {
@@ -100,22 +100,29 @@ const GetTestPlaneInfo2 = async (selectedPlane: TestPlan, testPlaneId: number, p
     let palneFullInfo: Array<TestSuiteModel> = new Array<TestSuiteModel>();
     let suites = await client.getTestSuitesForPlan(projectName, testPlaneId);
     if (suites.length > 0) {
-        suites.forEach(async (suite) => {
-            let newSuite: TestSuiteModel = new TestSuiteModel();
-            newSuite.suiteId = suite.id;
-            try {
-                newSuite.perentId = suite.parent.id;
-            }
-            catch {
-                newSuite.perentId = "0";
-            };
-            newSuite.suiteName = suite.name;
-            newSuite.suiteState = suite.state;
-            newSuite.childrenSuites = Array<TestSuiteModel>();
-            newSuite.testCaseList = await TestCaseInfos2(projectName, testPlaneId, suite.id);
-            palneFullInfo.push(newSuite);
-        });      
-    }    
+        palneFullInfo = await GetTestSuites2(suites, projectName, testPlaneId);
+    }
+    else {
+        return palneFullInfo;
+    }
+}
+const GetTestSuites2 = async (suites: TestSuite[], projectName: string, testPlaneId: number) => {
+    let palneFullInfo: Array<TestSuiteModel> = new Array<TestSuiteModel>();
+    suites.forEach(async (suite) => {
+        let newSuite: TestSuiteModel = new TestSuiteModel();
+        newSuite.suiteId = suite.id;
+        try {
+            newSuite.perentId = suite.parent.id;
+        }
+        catch {
+            newSuite.perentId = "0";
+        };
+        newSuite.suiteName = suite.name;
+        newSuite.suiteState = suite.state;
+        newSuite.childrenSuites = Array<TestSuiteModel>();
+        newSuite.testCaseList = await TestCaseInfos2(projectName, testPlaneId, suite.id);
+        palneFullInfo.push(newSuite);
+    });
     return palneFullInfo;
 }
 const TestCaseInfos2 = async (projectName: string, testPlaneId: number, suiteId: number) => {
