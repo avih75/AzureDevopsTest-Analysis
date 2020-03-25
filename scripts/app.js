@@ -67,84 +67,91 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
             container.empty();
             planInfo.empty();
             let selectedPlane = yield client.getPlanById(projectName, testPlaneId);
-            let palneFullInfo = yield GetTestPlaneInfo2(selectedPlane, testPlaneId, planInfo, projectName);
+            let palneFullInfo = yield GetTestPlaneInfo(selectedPlane, testPlaneId, planInfo, projectName);
             palneFullInfo = ReArangeSuiteList(palneFullInfo);
             CreateTableView(palneFullInfo);
         });
     }
-    const GetTestPlaneInfo2 = (selectedPlane, testPlaneId, planInfo, projectName) => __awaiter(this, void 0, void 0, function* () {
-        planInfo.append($("<h4 />").text("project: " + projectName +
-            "    Plane: " + testPlaneId +
-            "    Root Suite: " + selectedPlane.rootSuite.name +
-            "    Iteration: " + selectedPlane.iteration +
-            "    Start Date: " + selectedPlane.startDate +
-            "    State: " + selectedPlane.state));
-        let palneFullInfo = new Array();
-        let suites = yield client.getTestSuitesForPlan(projectName, testPlaneId);
-        if (suites.length > 0) {
-            palneFullInfo = yield GetTestSuites2(suites, projectName, testPlaneId);
-        }
-        else {
-            return palneFullInfo;
-        }
-    });
-    const GetTestSuites2 = (suites, projectName, testPlaneId) => __awaiter(this, void 0, void 0, function* () {
-        let palneFullInfo = new Array();
-        suites.forEach((suite) => __awaiter(this, void 0, void 0, function* () {
-            let newSuite = new TestSuiteModel();
-            newSuite.suiteId = suite.id;
-            try {
-                newSuite.perentId = suite.parent.id;
+    function GetTestPlaneInfo(selectedPlane, testPlaneId, planInfo, projectName) {
+        return __awaiter(this, void 0, void 0, function* () {
+            planInfo.append($("<h4 />").text("project: " + projectName +
+                "    Plane: " + testPlaneId +
+                "    Root Suite: " + selectedPlane.rootSuite.name +
+                "    Iteration: " + selectedPlane.iteration +
+                "    Start Date: " + selectedPlane.startDate +
+                "    State: " + selectedPlane.state));
+            let suites = yield client.getTestSuitesForPlan(projectName, testPlaneId);
+            if (suites.length > 0) {
+                return yield GetTestSuites(suites, projectName, testPlaneId);
             }
-            catch (_a) {
-                newSuite.perentId = "0";
+            else {
+                return new Array();
+                ;
             }
-            ;
-            newSuite.suiteName = suite.name;
-            newSuite.suiteState = suite.state;
-            newSuite.childrenSuites = Array();
-            newSuite.testCaseList = yield TestCaseInfos2(projectName, testPlaneId, suite.id);
-            palneFullInfo.push(newSuite);
-        }));
-        return palneFullInfo;
-    });
-    const TestCaseInfos2 = (projectName, testPlaneId, suiteId) => __awaiter(this, void 0, void 0, function* () {
-        let TestCaseList = new Array();
-        let testCases = yield client.getTestCases(projectName, testPlaneId, suiteId);
-        if (testCases.length > 0) {
-            testCases.forEach((testCase) => __awaiter(this, void 0, void 0, function* () {
+        });
+    }
+    function GetTestSuites(suites, projectName, testPlaneId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let planeFullInfo = new Array();
+            for (const suite of suites) {
+                let newSuite = new TestSuiteModel();
+                newSuite.suiteId = suite.id;
+                try {
+                    newSuite.perentId = suite.parent.id;
+                }
+                catch (_a) {
+                    newSuite.perentId = "0";
+                }
+                ;
+                newSuite.suiteName = suite.name;
+                newSuite.suiteState = suite.state;
+                newSuite.childrenSuites = Array();
+                newSuite.testCaseList = yield TestCaseInfos(projectName, testPlaneId, suite.id);
+                planeFullInfo.push(newSuite);
+            }
+            return planeFullInfo;
+        });
+    }
+    function TestCaseInfos(projectName, testPlaneId, suiteId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let TestCaseList = new Array();
+            let testCases = yield client.getTestCases(projectName, testPlaneId, suiteId);
+            for (const testCase of testCases) {
                 let newTestCase = new TestCaseModel();
                 newTestCase.testCaseType = testCase.testCase.type;
                 newTestCase.testCaseId = testCase.testCase.id;
                 newTestCase.testCaseName = testCase.testCase.name;
-                newTestCase.testPoint = yield GetPointByID2(projectName, testPlaneId, suiteId, newTestCase.testCaseId);
+                newTestCase.testPoint = yield GetPointByID(projectName, testPlaneId, suiteId, newTestCase.testCaseId);
                 TestCaseList.push(newTestCase);
-            }));
-        }
-        return TestCaseList;
-    });
-    const GetPointByID2 = (projectName, testPlaneId, suiteId, testCaseId) => __awaiter(this, void 0, void 0, function* () {
-        let newTestPoint = new TestPointModel();
-        try {
-            let testPoints = yield client.getPoints(projectName, testPlaneId, suiteId);
-            if (testPoints.length > 0) {
-                testPoints.forEach(testPoint => {
-                    if (testPoint.testCase.id == testCaseId) {
-                        newTestPoint.lastTestRun = testPoint.lastTestRun.id;
-                        newTestPoint.assignedTo = testPoint.assignedTo.displayName;
-                        newTestPoint.comment = testPoint.comment;
-                        newTestPoint.failureType = testPoint.failureType;
-                        newTestPoint.outCome = testPoint.outcome;
-                        newTestPoint.state = testPoint.state;
-                    }
-                });
             }
-            return newTestPoint;
-        }
-        catch (_b) {
-            return newTestPoint;
-        }
-    });
+            return TestCaseList;
+        });
+    }
+    ;
+    function GetPointByID(projectName, testPlaneId, suiteId, testCaseId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let newTestPoint = new TestPointModel();
+            try {
+                let testPoints = yield client.getPoints(projectName, testPlaneId, suiteId);
+                if (testPoints.length > 0) {
+                    testPoints.forEach(testPoint => {
+                        if (testPoint.testCase.id == testCaseId) {
+                            newTestPoint.lastTestRun = testPoint.lastTestRun.id;
+                            newTestPoint.assignedTo = testPoint.assignedTo.displayName;
+                            newTestPoint.comment = testPoint.comment;
+                            newTestPoint.failureType = testPoint.failureType;
+                            newTestPoint.outCome = testPoint.outcome;
+                            newTestPoint.state = testPoint.state;
+                        }
+                    });
+                }
+                return newTestPoint;
+            }
+            catch (_a) {
+                return newTestPoint;
+            }
+        });
+    }
     function ReArangeSuiteList(palneFullInfo) {
         return palneFullInfo;
     }
@@ -153,17 +160,17 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
             let container = $("#grid-container");
             var gridOptions = {
                 height: "600px",
-                width: "17000",
+                width: "10000",
                 source: palneFullInfo,
+                expandStates: [4, 5, 6],
+                extendViewportBy: 10,
                 columns: [
-                    { text: "Suite", width: 200, index: "suite" },
-                    { text: "Test Case", width: 200, index: "testCase" },
-                    { text: "State", width: 100, index: "state" },
-                    { text: "Out-Come", width: 100, index: "outCome" },
-                    { text: "Last Test Run", width: 200, index: "lastTestRun" },
-                    { text: "Assigned-To", width: 200, index: "assignedTo" },
-                    { text: "Comment", width: 500, index: "comment" },
-                    { text: "Failure Type", width: 200, index: "failureType" }
+                    { text: "Suite", width: 50, index: "suiteId" },
+                    { text: "State", width: 70, index: "suiteState" },
+                    { text: "Test Case", width: 200, index: "suiteName" },
+                    { text: "Test Case", width: 200, index: "childrenSuites" },
+                    { text: "Test Case", width: 200, index: "testCaseList" },
+                    { text: "Test Case", width: 200, index: "testpoints" },
                 ]
             };
             var target = Controls.create(Grids.Grid, container, gridOptions);
