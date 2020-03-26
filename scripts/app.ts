@@ -1,7 +1,7 @@
 import TestRestClient = require("TFS/TestManagement/RestClient");
 import Controls = require("VSS/Controls");
 import Grids = require("VSS/Controls/Grids");
-import { TestPlan, TestSuite } from "TFS/TestManagement/Contracts";
+import { TestPlan, TestSuite, SuiteTestCase } from "TFS/TestManagement/Contracts";
 let client: TestRestClient.TestHttpClient4_1;
 class TestPointModel {
     state: string;
@@ -29,7 +29,8 @@ class TestSuiteModel {
     suiteState: string;
     childrenSuites: Array<TestSuiteModel>;
     testCaseList: Array<TestCaseModel>;
-    //testpoints: Array<TestPointModel>;
+    suiteType: string;
+    testCaseCount: number;
 }
 function Init_Page(): void {
     client = TestRestClient.getClient();
@@ -82,7 +83,6 @@ async function BuildTableTestGrid2(projectName: string, testPlaneId: number): Pr
     planInfo.empty();
     let selectedPlane = await client.getPlanById(projectName, testPlaneId);
     let palneFullInfo: Array<TestSuiteModel> = await GetTestPlaneInfo(selectedPlane, testPlaneId, planInfo, projectName)
-    //GetTestPlaneInfo2(selectedPlane, testPlaneId, planInfo, projectName).then((palneFullInfo) => {
     let rootTestCase: TestSuiteModel = ReArangeSuiteList(palneFullInfo);
     CreateTableView(rootTestCase);
     BuildGraph(palneFullInfo)
@@ -92,6 +92,7 @@ async function GetTestPlaneInfo(selectedPlane: TestPlan, testPlaneId: number, pl
         "    Plane: " + testPlaneId +
         "    Root Suite: " + selectedPlane.rootSuite.name +
         "    Iteration: " + selectedPlane.iteration +
+        "    Area: " + selectedPlane.area +
         "    Start Date: " + selectedPlane.startDate +
         "    State: " + selectedPlane.state));
     let suites = await client.getTestSuitesForPlan(projectName, testPlaneId);
@@ -114,6 +115,8 @@ async function GetTestSuites(suites: TestSuite[], projectName: string, testPlane
             newSuite.perentId = "0";
         };
         newSuite.suiteName = suite.name;
+        newSuite.suiteType = suite.suiteType;
+        newSuite.testCaseCount = suite.testCaseCount;
         newSuite.suiteState = suite.state;
         newSuite.childrenSuites = Array<TestSuiteModel>();
         newSuite.testCaseList = await TestCaseInfos(projectName, testPlaneId, suite.id);
@@ -124,7 +127,8 @@ async function GetTestSuites(suites: TestSuite[], projectName: string, testPlane
 async function TestCaseInfos(projectName: string, testPlaneId: number, suiteId: number) {
     let TestCaseList = new Array<TestCaseModel>();
     let testCases = await client.getTestCases(projectName, testPlaneId, suiteId);
-    for (const testCase of testCases) {
+    for (const halfTestCase of testCases) {
+        let testCase: SuiteTestCase = await client.getTestCaseById(projectName, testPlaneId, suiteId, +halfTestCase.testCase.id);
         let newTestCase: TestCaseModel = new TestCaseModel();
         newTestCase.testCaseType = testCase.testCase.type;
         newTestCase.testCaseId = testCase.testCase.id;
@@ -133,7 +137,7 @@ async function TestCaseInfos(projectName: string, testPlaneId: number, suiteId: 
         newTestCase.state = testPoint.state;
         newTestCase.outCome = testPoint.outCome;
         newTestCase.lastTestRun = testPoint.lastTestRun;
-        newTestCase.assignedTo = testPoint.assignedTo;
+        newTestCase.assignedTo = testCase.pointAssignments[testCase.pointAssignments.length - 1].tester.displayName;
         newTestCase.comment = testPoint.comment;
         newTestCase.failureType = testPoint.failureType;
         TestCaseList.push(newTestCase);
@@ -148,7 +152,7 @@ async function GetPointByID(projectName: string, testPlaneId: number, suiteId: n
             testPoints.forEach(testPoint => {
                 if (testPoint.testCase.id == testCaseId) {
                     newTestPoint.lastTestRun = testPoint.lastTestRun.id;
-                    newTestPoint.assignedTo = testPoint.assignedTo.displayName;
+                    newTestPoint.assignedTo = testPoint.assignedTo.uniqueName;
                     newTestPoint.comment = testPoint.comment;
                     newTestPoint.failureType = testPoint.failureType;
                     newTestPoint.outCome = testPoint.outcome;
@@ -180,60 +184,61 @@ function ReArangeSuiteList(palneFullInfo: Array<TestSuiteModel>) {
 }
 function CreateTableView(rootTestCase: TestSuiteModel) {
     let MasterDiv = $("#grid-container");
-    let container: JQuery = CreateSuiteView(rootTestCase);
+    let container: JQuery = CreateSuiteView(rootTestCase, 0);
     MasterDiv.append(container);
 }
-function CreateSuiteView(rootTestCase: TestSuiteModel) {
+function CreateSuiteView(rootTestCase: TestSuiteModel, place: number) {
     let container = $("<div />");
     let SuiteDiv = $("<div />");
     let ChildrenDiv = $("<div />");
     let TestPointDiv: JQuery;
     var gridTestSuiteOptions: Grids.IGridOptions = {
-        height: "40",
+        height: "30",
         width: "10000",
         source: [rootTestCase],
         header: false,
         columns: [
-            { text: "Suite ID", width: 50, index: "suiteId" },
-            { text: "State", width: 100, index: "suiteState" },
-            { text: "Suite Name", width: 200, index: "suiteName" }
+            { text: "", width: 50 * place },
+            { text: "Suite Name", width: 100, index: "suiteName" },
+            { text: "State", width: 80, index: "suiteState" },
+            { text: "Suite Type", width: 100, index: "suiteType" },
+            { text: "Test Case Count", width: 50, index: "testCaseCount" }
         ]
     };
     var target = Controls.create(Grids.Grid, SuiteDiv, gridTestSuiteOptions);
-    target.setDataSource([TestSuiteModel]);
+    target.setDataSource([rootTestCase]);
     if (rootTestCase.childrenSuites != undefined && rootTestCase.childrenSuites.length > 0) {
         rootTestCase.childrenSuites.forEach(child => {
-            let childDiv: JQuery = CreateSuiteView(child);
+            let childDiv: JQuery = CreateSuiteView(child, place + 1);
             ChildrenDiv.append(childDiv);
         });
     }
     if (rootTestCase.testCaseList != undefined && rootTestCase.testCaseList.length > 0) {
-        TestPointDiv = CreateTestCasesView(rootTestCase.testCaseList)
+        TestPointDiv = CreateTestCasesView(rootTestCase.testCaseList, place + 1)
     }
     container.append(SuiteDiv);
-    container.append($("<br />"));
+    container.css('background-color', 'beige');
     container.append(ChildrenDiv);
-    container.append($("<br />"));
     container.append(TestPointDiv);
     return container;
 }
-function CreateTestCasesView(pointList: TestPointModel[]) {
+function CreateTestCasesView(pointList: TestPointModel[], place: number) {
     {
         let container: JQuery = $("<div />");
+        container.css('background-color', 'ivory');
         var gridTestCaseOptions: Grids.IGridOptions = {
-            height: (40 * pointList.length).toString(),
+            height: (30 * pointList.length).toString(),
             width: "10000",
             source: pointList,
             extendViewportBy: pointList.length,
             header: false,
             columns: [
-                { text: "Test Case ID", width: 100, index: "testCaseId" },
+                { text: "", width: 50 * place + 25 },
                 { text: "Test Case Name", width: 100, index: "testCaseName" },
                 { text: "Test Case Type", width: 100, index: "testCaseType" },
-                { text: "State", width: 100, index: "state" },
+                { text: "State", width: 80, index: "state" },
                 { text: "OutCome", width: 100, index: "outCome" },
-                { text: "Last Test Run", width: 200, index: "lastTestRun" },
-                { text: "Assigned To", width: 200, index: "assignedTo" },
+                { text: "Assigned To", width: 100, index: "assignedTo" },
                 { text: "Comment", width: 200, index: "comment" },
                 { text: "Failure Type", width: 200, index: "failureType" },
             ]

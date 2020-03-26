@@ -79,6 +79,7 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
                 "    Plane: " + testPlaneId +
                 "    Root Suite: " + selectedPlane.rootSuite.name +
                 "    Iteration: " + selectedPlane.iteration +
+                "    Area: " + selectedPlane.area +
                 "    Start Date: " + selectedPlane.startDate +
                 "    State: " + selectedPlane.state));
             let suites = yield client.getTestSuitesForPlan(projectName, testPlaneId);
@@ -105,6 +106,8 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
                 }
                 ;
                 newSuite.suiteName = suite.name;
+                newSuite.suiteType = suite.suiteType;
+                newSuite.testCaseCount = suite.testCaseCount;
                 newSuite.suiteState = suite.state;
                 newSuite.childrenSuites = Array();
                 newSuite.testCaseList = yield TestCaseInfos(projectName, testPlaneId, suite.id);
@@ -117,7 +120,8 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
         return __awaiter(this, void 0, void 0, function* () {
             let TestCaseList = new Array();
             let testCases = yield client.getTestCases(projectName, testPlaneId, suiteId);
-            for (const testCase of testCases) {
+            for (const halfTestCase of testCases) {
+                let testCase = yield client.getTestCaseById(projectName, testPlaneId, suiteId, +halfTestCase.testCase.id);
                 let newTestCase = new TestCaseModel();
                 newTestCase.testCaseType = testCase.testCase.type;
                 newTestCase.testCaseId = testCase.testCase.id;
@@ -126,7 +130,7 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
                 newTestCase.state = testPoint.state;
                 newTestCase.outCome = testPoint.outCome;
                 newTestCase.lastTestRun = testPoint.lastTestRun;
-                newTestCase.assignedTo = testPoint.assignedTo;
+                newTestCase.assignedTo = testCase.pointAssignments[testCase.pointAssignments.length - 1].tester.displayName;
                 newTestCase.comment = testPoint.comment;
                 newTestCase.failureType = testPoint.failureType;
                 TestCaseList.push(newTestCase);
@@ -144,7 +148,7 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
                     testPoints.forEach(testPoint => {
                         if (testPoint.testCase.id == testCaseId) {
                             newTestPoint.lastTestRun = testPoint.lastTestRun.id;
-                            newTestPoint.assignedTo = testPoint.assignedTo.displayName;
+                            newTestPoint.assignedTo = testPoint.assignedTo.uniqueName;
                             newTestPoint.comment = testPoint.comment;
                             newTestPoint.failureType = testPoint.failureType;
                             newTestPoint.outCome = testPoint.outcome;
@@ -177,60 +181,61 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
     }
     function CreateTableView(rootTestCase) {
         let MasterDiv = $("#grid-container");
-        let container = CreateSuiteView(rootTestCase);
+        let container = CreateSuiteView(rootTestCase, 0);
         MasterDiv.append(container);
     }
-    function CreateSuiteView(rootTestCase) {
+    function CreateSuiteView(rootTestCase, place) {
         let container = $("<div />");
         let SuiteDiv = $("<div />");
         let ChildrenDiv = $("<div />");
         let TestPointDiv;
         var gridTestSuiteOptions = {
-            height: "40",
+            height: "30",
             width: "10000",
             source: [rootTestCase],
             header: false,
             columns: [
-                { text: "Suite ID", width: 50, index: "suiteId" },
-                { text: "State", width: 100, index: "suiteState" },
-                { text: "Suite Name", width: 200, index: "suiteName" }
+                { text: "", width: 50 * place },
+                { text: "Suite Name", width: 100, index: "suiteName" },
+                { text: "State", width: 80, index: "suiteState" },
+                { text: "Suite Type", width: 100, index: "suiteType" },
+                { text: "Test Case Count", width: 50, index: "testCaseCount" }
             ]
         };
         var target = Controls.create(Grids.Grid, SuiteDiv, gridTestSuiteOptions);
-        target.setDataSource([TestSuiteModel]);
+        target.setDataSource([rootTestCase]);
         if (rootTestCase.childrenSuites != undefined && rootTestCase.childrenSuites.length > 0) {
             rootTestCase.childrenSuites.forEach(child => {
-                let childDiv = CreateSuiteView(child);
+                let childDiv = CreateSuiteView(child, place + 1);
                 ChildrenDiv.append(childDiv);
             });
         }
         if (rootTestCase.testCaseList != undefined && rootTestCase.testCaseList.length > 0) {
-            TestPointDiv = CreateTestCasesView(rootTestCase.testCaseList);
+            TestPointDiv = CreateTestCasesView(rootTestCase.testCaseList, place + 1);
         }
         container.append(SuiteDiv);
-        container.append($("<br />"));
+        container.css('background-color', 'beige');
         container.append(ChildrenDiv);
-        container.append($("<br />"));
         container.append(TestPointDiv);
         return container;
     }
-    function CreateTestCasesView(pointList) {
+    function CreateTestCasesView(pointList, place) {
         {
             let container = $("<div />");
+            container.css('background-color', 'ivory');
             var gridTestCaseOptions = {
-                height: (40 * pointList.length).toString(),
+                height: (30 * pointList.length).toString(),
                 width: "10000",
                 source: pointList,
                 extendViewportBy: pointList.length,
                 header: false,
                 columns: [
-                    { text: "Test Case ID", width: 100, index: "testCaseId" },
+                    { text: "", width: 50 * place + 25 },
                     { text: "Test Case Name", width: 100, index: "testCaseName" },
                     { text: "Test Case Type", width: 100, index: "testCaseType" },
-                    { text: "State", width: 100, index: "state" },
+                    { text: "State", width: 80, index: "state" },
                     { text: "OutCome", width: 100, index: "outCome" },
-                    { text: "Last Test Run", width: 200, index: "lastTestRun" },
-                    { text: "Assigned To", width: 200, index: "assignedTo" },
+                    { text: "Assigned To", width: 100, index: "assignedTo" },
                     { text: "Comment", width: 200, index: "comment" },
                     { text: "Failure Type", width: 200, index: "failureType" },
                 ]
