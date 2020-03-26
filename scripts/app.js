@@ -22,6 +22,7 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
         $("#graph-container").hide();
         $("#grid-container").hide();
         $("#PlanInfos").hide();
+        $("#query-container").hide();
         selectPlan.hide();
         var projectName = VSS.getWebContext().project.name;
         BuildRadioButton();
@@ -33,11 +34,19 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "VSS/Controls", "
                 $("#PlanInfos").show();
                 $("#grid-container").show();
                 $("#graph-container").hide();
+                $("#query-container").hide();
             }
             else if (this.value == 'Graphs') {
                 $("#grid-container").hide();
                 $("#PlanInfos").hide();
                 $("#graph-container").show();
+                $("#query-container").hide();
+            }
+            else if (this.value == 'Querys') {
+                $("#grid-container").hide();
+                $("#PlanInfos").hide();
+                $("#graph-container").hide();
+                $("#query-container").show();
             }
         });
     }

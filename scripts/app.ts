@@ -38,6 +38,7 @@ function Init_Page(): void {
     $("#graph-container").hide();
     $("#grid-container").hide();
     $("#PlanInfos").hide();
+    $("#query-container").hide();
     selectPlan.hide();
     var projectName = VSS.getWebContext().project.name;
     BuildRadioButton()
@@ -49,19 +50,27 @@ function BuildRadioButton() {
             $("#PlanInfos").show();
             $("#grid-container").show();
             $("#graph-container").hide();
+            $("#query-container").hide();
         }
         else if (this.value == 'Graphs') {
             $("#grid-container").hide();
             $("#PlanInfos").hide();
             $("#graph-container").show();
+            $("#query-container").hide();
+        }
+        else if (this.value == 'Querys') {
+            $("#grid-container").hide();
+            $("#PlanInfos").hide();
+            $("#graph-container").hide();
+            $("#query-container").show();
         }
     });
 }
 function BuildSelect(projectName: string, selectPlan: JQuery) {
     selectPlan.change(function () {
-        let selectedPlane = $(this).children("option:selected").val();
-        BuildTableTestGrid2(projectName, selectedPlane);
-        BuildGraph(selectedPlane);
+        let selectedPlan = $(this).children("option:selected").val();
+        BuildTableTestGrid2(projectName, selectedPlan);
+        BuildGraph(selectedPlan);
     });
     client._setInitializationPromise(client.authTokenManager.getAuthToken());
     client.getPlans(projectName).then((plans) => {
@@ -76,35 +85,35 @@ function BuildSelect(projectName: string, selectPlan: JQuery) {
         BuildGraph(lastPlan);
     })
 }
-async function BuildTableTestGrid2(projectName: string, testPlaneId: number): Promise<void> {
+async function BuildTableTestGrid2(projectName: string, testPlanId: number): Promise<void> {
     let container = $("#grid-container");
     let planInfo = $("#PlanInfos");
     container.empty();
     planInfo.empty();
-    let selectedPlane = await client.getPlanById(projectName, testPlaneId);
-    let palneFullInfo: Array<TestSuiteModel> = await GetTestPlaneInfo(selectedPlane, testPlaneId, planInfo, projectName)
+    let selectedPlan = await client.getPlanById(projectName, testPlanId);
+    let palneFullInfo: Array<TestSuiteModel> = await GetTestPlanInfo(selectedPlan, testPlanId, planInfo, projectName)
     let rootTestCase: TestSuiteModel = ReArangeSuiteList(palneFullInfo);
     CreateTableView(rootTestCase);
     BuildGraph(palneFullInfo)
 }
-async function GetTestPlaneInfo(selectedPlane: TestPlan, testPlaneId: number, planInfo: JQuery, projectName: string) {
+async function GetTestPlanInfo(selectedPlan: TestPlan, testPlanId: number, planInfo: JQuery, projectName: string) {
     planInfo.append($("<h4 />").text("project: " + projectName +
-        "    Plane: " + testPlaneId +
-        "    Root Suite: " + selectedPlane.rootSuite.name +
-        "    Iteration: " + selectedPlane.iteration +
-        "    Area: " + selectedPlane.area +
-        "    Start Date: " + selectedPlane.startDate +
-        "    State: " + selectedPlane.state));
-    let suites = await client.getTestSuitesForPlan(projectName, testPlaneId);
+        "    Plan: " + testPlanId +
+        "    Root Suite: " + selectedPlan.rootSuite.name +
+        "    Iteration: " + selectedPlan.iteration +
+        "    Area: " + selectedPlan.area +
+        "    Start Date: " + selectedPlan.startDate +
+        "    State: " + selectedPlan.state));
+    let suites = await client.getTestSuitesForPlan(projectName, testPlanId);
     if (suites.length > 0) {
-        return await GetTestSuites(suites, projectName, testPlaneId);
+        return await GetTestSuites(suites, projectName, testPlanId);
     }
     else {
         return new Array<TestSuiteModel>();;
     }
 }
-async function GetTestSuites(suites: TestSuite[], projectName: string, testPlaneId: number) {
-    let planeFullInfo: Array<TestSuiteModel> = new Array<TestSuiteModel>();
+async function GetTestSuites(suites: TestSuite[], projectName: string, testPlanId: number) {
+    let planFullInfo: Array<TestSuiteModel> = new Array<TestSuiteModel>();
     for (const suite of suites) {
         let newSuite: TestSuiteModel = new TestSuiteModel();
         newSuite.suiteId = suite.id;
@@ -119,21 +128,21 @@ async function GetTestSuites(suites: TestSuite[], projectName: string, testPlane
         newSuite.testCaseCount = suite.testCaseCount;
         newSuite.suiteState = suite.state;
         newSuite.childrenSuites = Array<TestSuiteModel>();
-        newSuite.testCaseList = await TestCaseInfos(projectName, testPlaneId, suite.id);
-        planeFullInfo.push(newSuite);
+        newSuite.testCaseList = await TestCaseInfos(projectName, testPlanId, suite.id);
+        planFullInfo.push(newSuite);
     }
-    return planeFullInfo;
+    return planFullInfo;
 }
-async function TestCaseInfos(projectName: string, testPlaneId: number, suiteId: number) {
+async function TestCaseInfos(projectName: string, testPlanId: number, suiteId: number) {
     let TestCaseList = new Array<TestCaseModel>();
-    let testCases = await client.getTestCases(projectName, testPlaneId, suiteId);
+    let testCases = await client.getTestCases(projectName, testPlanId, suiteId);
     for (const halfTestCase of testCases) {
-        let testCase: SuiteTestCase = await client.getTestCaseById(projectName, testPlaneId, suiteId, +halfTestCase.testCase.id);
+        let testCase: SuiteTestCase = await client.getTestCaseById(projectName, testPlanId, suiteId, +halfTestCase.testCase.id);
         let newTestCase: TestCaseModel = new TestCaseModel();
         newTestCase.testCaseType = testCase.testCase.type;
         newTestCase.testCaseId = testCase.testCase.id;
         newTestCase.testCaseName = testCase.testCase.name;
-        let testPoint = await GetPointByID(projectName, testPlaneId, suiteId, newTestCase.testCaseId)
+        let testPoint = await GetPointByID(projectName, testPlanId, suiteId, newTestCase.testCaseId)
         newTestCase.state = testPoint.state;
         newTestCase.outCome = testPoint.outCome;
         newTestCase.lastTestRun = testPoint.lastTestRun;
@@ -144,10 +153,10 @@ async function TestCaseInfos(projectName: string, testPlaneId: number, suiteId: 
     }
     return TestCaseList;
 };
-async function GetPointByID(projectName: string, testPlaneId: number, suiteId: number, testCaseId: string) {
+async function GetPointByID(projectName: string, testPlanId: number, suiteId: number, testCaseId: string) {
     let newTestPoint: TestPointModel = new TestPointModel();
     try {
-        let testPoints = await client.getPoints(projectName, testPlaneId, suiteId);
+        let testPoints = await client.getPoints(projectName, testPlanId, suiteId);
         if (testPoints.length > 0) {
             testPoints.forEach(testPoint => {
                 if (testPoint.testCase.id == testCaseId) {

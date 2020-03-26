@@ -1,0 +1,8 @@
+.radio-div {
+    flex-wrap: wrap;
+}
+
+.radio {
+    margin: 20,5,0,0;
+    font-size: large;
+}

@@ -5,6 +5,7 @@
 	<meta charset="utf-8" />
 	<script src="scripts/VSS.SDK.min.js"></script>
 	<title>Test Analisys Avi Hadad</title>
+	<link rel="stylesheet" href="scripts/style.css" type="text/css" />
 </head>
 
 <body style="height: 100%">
@@ -22,15 +23,19 @@
 		<b id="loading"> Loading....</b>
 		<select id="selectPlan" ></select>
 	</div> 
-	<div>
+	<div class="radio-div">
 		<input type="radio" id="male" name="view" value="Table">
-		<label for="Table">Table</label><br>
+		<label for="Table" class="radio">Table</label> 
 		<input type="radio" id="female" name="view" value="Graphs">
-		<label for="Graphs">Graphs</label><br> 
+		<label for="Graphs" class="radio">Graphs</label> 
+		<input type="radio" id="female" name="view" value="Querys">
+		<label for="Querys" class="radio">Querys</label>
+		<br>
 	</div>
 	<div id="PlanInfos"></div>
 	<div id="grid-container"></div>
 	<div id="graph-container"></div>
+	<div id="query-container"></div>
 	<script type="text/javascript">
 		VSS.require(["scripts/app"], function () {
 			VSS.notifyLoadSucceeded();
