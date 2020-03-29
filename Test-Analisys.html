@@ -8,8 +8,8 @@
 	<link rel="stylesheet" href="scripts/style.css" type="text/css" />
 </head>
 
-<body style="height: 100%">
-	<h1>Test Analisys</h1>
+<body style="height:100%">
+	<div class="Title">Test Analisys</div>
 	<script type="text/javascript">
 		VSS.init({
 			moduleLoaderConfig: true,
@@ -18,14 +18,14 @@
 			usePlatformStyles: true
 			// configureModuleLoader: true
 		});</script>
-	<div id="Tests">
-		<b>Test Plans : </b>
-		<b id="loading"> Loading....</b>
+	<div id="Tests" class="selectTitle">
+		<div class="Select">Test Plans : </div>
+		<div id="loading" class="Select"> Loading....</div>
 		<select id="selectPlan" ></select>
 	</div> 
 	<div class="radio-div">
 		<input type="radio" id="male" name="view" value="Table">
-		<label for="Table" class="radio">Table</label> 
+		<label for="Table" class="radio">Table</label>
 		<input type="radio" id="female" name="view" value="Graphs">
 		<label for="Graphs" class="radio">Graphs</label> 
 		<input type="radio" id="female" name="view" value="Querys">
@@ -33,7 +33,7 @@
 		<br>
 	</div>
 	<div id="PlanInfos"></div>
-	<div id="grid-container"></div>
+	<div id="grid-container" class="MainTableDiv"></div>
 	<div id="graph-container"></div>
 	<div id="query-container"></div>
 	<script type="text/javascript">

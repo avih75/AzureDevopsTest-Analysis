@@ -1,8 +1,40 @@
 .radio-div {
     flex-wrap: wrap;
+    padding: 20px;
 }
-
+.selectTitle {
+    flex-wrap: wrap;
+}
 .radio {
-    margin: 20,5,0,0;
+    margin: 30,5,0,0;
     font-size: large;
+}
+.Select {
+    font-size: x-large; 
+}
+.Title {
+    padding-left: 100;
+    margin-left: 100;
+    font-size: xx-large; 
+    color: blue;
+}
+.TestSuit {
+    background-color: beige;
+    scroll-behavior: unset;
+    border: khaki;
+}
+.TestPoint{
+    border-left: solid;
+    background-color: ivory;
+    scroll-behavior: unset;
+}
+.MainTableDiv{
+    height: max-content;
+    border-style: solid;
+    border-color: black; 
+    margin-left: 20;
+    padding-left: 10;
+} 
+.PlainMainInfo{
+    font-size: medium;
 }
