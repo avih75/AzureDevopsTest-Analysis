@@ -2,39 +2,126 @@
     flex-wrap: wrap;
     padding: 20px;
 }
+
 .selectTitle {
     flex-wrap: wrap;
 }
+
 .radio {
-    margin: 30,5,0,0;
+    margin: 30, 5, 0, 0;
     font-size: large;
 }
+
 .Select {
-    font-size: x-large; 
+    font-size: x-large;
 }
+
 .Title {
     padding-left: 100;
     margin-left: 100;
-    font-size: xx-large; 
+    font-size: xx-large;
     color: blue;
 }
+
 .TestSuit {
     background-color: beige;
     scroll-behavior: unset;
     border: khaki;
 }
-.TestPoint{
+
+.TestPoint {
     border-left: solid;
     background-color: ivory;
     scroll-behavior: unset;
 }
-.MainTableDiv{
-    height: max-content;
-    border-style: solid;
-    border-color: black; 
-    margin-left: 20;
-    padding-left: 10;
-} 
-.PlainMainInfo{
+
+.MainTableDiv {
+    border-top-style: groove;
+    border-color: rosybrown;
+}
+
+.PlainMainInfo {
     font-size: medium;
+}
+
+.myUL {
+    margin: 0;
+    padding: 0;
+}
+
+.caret {
+    cursor: pointer;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+.caret::before {
+    content: "\27A4";
+    color: gold;
+    display: inline-block;
+    margin-right: 6px;
+}
+
+.testClass {
+    cursor: pointer;
+}
+
+.testClass::before {
+    content: "\0372";
+    color: red;
+    display: inline-block;
+    margin-right: 6px;
+}
+
+.caret-down::before {
+    -ms-transform: rotate(90deg);
+    -webkit-transform: rotate(90deg);
+    transform: rotate(90deg);
+}
+
+.nested {
+    display: none;
+}
+
+.active {
+    display: block;
+}
+
+.testLableInfo {
+    font-size: medium;
+    color: black;
+    padding-right: 5px;
+}
+
+.testInfo {
+    width: auto;
+    font-size: medium;
+    color: blue;
+    padding-right: 15px;
+}
+
+.suitLable {
+    font-size: medium;
+    color: black;
+    padding-right: 5px;
+}
+
+.suitInfo {
+    width: auto;
+    font-size: medium;
+    color: blue;
+    padding-right: 15px;
+}
+
+.planeInfo {
+    font-size: large;
+    padding-right: 20px;
+}
+
+.planeLable {
+    color: cornflowerblue;
+    font-size: large;
+    padding-right: 5px;
 }

@@ -6,17 +6,18 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTracking/RestClient", "VSS/Controls", "VSS/Controls/Grids"], function (require, exports, TestRestClient, WorkItemManagment, Controls, Grids) {
+define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTracking/RestClient", "VSS/Controls/Grids", "VSS/Controls"], function (require, exports, TestRestClient, WorkItemManagment, Grids, Controls) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     let client;
     let WIClient;
-    const indent = 10;
     class TestPointModel {
     }
     class TestCaseModel {
     }
     class TestSuiteModel {
+    }
+    class SumeSuite {
     }
     function Init_Page() {
         client = TestRestClient.getClient();
@@ -56,8 +57,8 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
     function BuildSelect(projectName, selectPlan) {
         selectPlan.change(function () {
             let selectedPlan = $(this).children("option:selected").val();
-            BuildTableTestGrid2(projectName, selectedPlan);
-            BuildGraph(selectedPlan);
+            BuildTableTestGrid(projectName, selectedPlan);
+            BuildGraphInfo(projectName, selectedPlan);
         });
         client._setInitializationPromise(client.authTokenManager.getAuthToken());
         client.getPlans(projectName).then((plans) => {
@@ -68,11 +69,11 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
             });
             $("#loading").hide();
             selectPlan.show();
-            BuildTableTestGrid2(projectName, lastPlan);
-            BuildGraph(lastPlan);
+            BuildTableTestGrid(projectName, lastPlan);
+            BuildGraphInfo(projectName, lastPlan);
         });
     }
-    function BuildTableTestGrid2(projectName, testPlanId) {
+    function BuildTableTestGrid(projectName, testPlanId) {
         return __awaiter(this, void 0, void 0, function* () {
             let container = $("#grid-container");
             let planInfo = $("#PlanInfos");
@@ -81,42 +82,28 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
             let selectedPlan = yield client.getPlanById(projectName, testPlanId);
             let palneFullInfo = yield GetTestPlanInfo(selectedPlan, testPlanId, planInfo, projectName);
             let rootTestCase = ReArangeSuiteList(palneFullInfo);
-            CreateTableView(rootTestCase);
-            BuildGraph(palneFullInfo);
+            BuildTreeView(rootTestCase);
+            BuildGraphInfo(projectName, testPlanId);
         });
     }
     function GetTestPlanInfo(selectedPlan, testPlanId, planInfo, projectName) {
         return __awaiter(this, void 0, void 0, function* () {
-            let plainMainInfo = $("<div />");
-            let ProjectName = $("<text />");
-            ProjectName.addClass("PlainMainInfo");
-            ProjectName.text("Project: " + projectName);
-            plainMainInfo.append(ProjectName);
-            let planeId = $("<text />");
-            planeId.addClass("PlainMainInfo");
-            planeId.text("Plan: " + testPlanId);
-            plainMainInfo.append(planeId);
-            let planeRootSuite = $("<text />");
-            planeRootSuite.addClass("PlainMainInfo");
-            planeRootSuite.text("Root Suite: " + selectedPlan.rootSuite.name);
-            plainMainInfo.append(planeRootSuite);
-            let planeIteration = $("<text />");
-            planeIteration.addClass("PlainMainInfo");
-            planeIteration.text("Iteration: " + selectedPlan.iteration);
-            plainMainInfo.append(planeIteration);
-            let planeArea = $("<text />");
-            planeArea.addClass("PlainMainInfo");
-            planeArea.text("Area: " + selectedPlan.area);
-            plainMainInfo.append(planeArea);
-            let planeStartDate = $("<text />");
-            planeStartDate.addClass("PlainMainInfo");
-            planeStartDate.text("Start Date: " + selectedPlan.startDate);
-            plainMainInfo.append(planeStartDate);
-            let planeState = $("<text />");
-            planeState.addClass("PlainMainInfo");
-            planeState.text("State: " + selectedPlan.state);
-            plainMainInfo.append(planeState);
-            planInfo.append(plainMainInfo);
+            let table = $("<table />");
+            let tr = $("<tr />");
+            tr.append(TextView("Project:", 5));
+            tr.append(TextView(projectName, 6));
+            tr.append(TextView("Plan:", 5));
+            tr.append(TextView(testPlanId, 6));
+            tr.append(TextView("Root Suite:", 5));
+            tr.append(TextView(selectedPlan.rootSuite.name, 6));
+            tr.append(TextView("Iteration:", 5));
+            tr.append(TextView(selectedPlan.iteration, 6));
+            tr.append(TextView("Area:", 5));
+            tr.append(TextView(selectedPlan.area, 6));
+            tr.append(TextView("State:", 5));
+            tr.append(TextView(selectedPlan.state, 6));
+            table.append(tr);
+            planInfo.append(table);
             let suites = yield client.getTestSuitesForPlan(projectName, testPlanId);
             if (suites.length > 0) {
                 return yield GetTestSuites(suites, projectName, testPlanId);
@@ -140,6 +127,7 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
                     newSuite.perentId = "0";
                 }
                 ;
+                newSuite.allTestCases = suite.testCaseCount;
                 newSuite.suiteName = suite.name;
                 newSuite.suiteType = suite.suiteType;
                 newSuite.testCaseCount = suite.testCaseCount;
@@ -198,80 +186,188 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
         });
         return rootSuite;
     }
-    function CreateTableView(rootTestCase) {
+    function BuildTreeView(rootTestCase) {
         let MasterDiv = $("#grid-container");
-        let container = CreateSuiteView(rootTestCase, 1);
-        MasterDiv.append(container);
+        let mainUl = $("<ul />");
+        mainUl.addClass("myUL");
+        mainUl.append(BuildTreeSuiteView(rootTestCase));
+        MasterDiv.append(mainUl);
     }
-    function CreateSuiteView(rootTestCase, place) {
-        let container = $("<div />");
+    function BuildTreeSuiteView(rootTestCase) {
+        let tr = $("<tr />");
+        tr.append(TextView("Suite:", 3));
+        tr.append(TextView(rootTestCase.suiteName, 4));
+        tr.append(TextView("Type:", 3));
+        tr.append(TextView(rootTestCase.suiteType, 4));
+        tr.append(TextView("State:", 3));
+        tr.append(TextView(rootTestCase.suiteState, 4));
+        tr.append(TextView("Local Count:", 3));
+        tr.append(TextView(rootTestCase.testCaseCount, 4));
+        let span = $("<span />");
+        span.addClass("caret");
+        span.append(tr);
+        let li = $("<dt />");
+        li.append(span);
+        let ul = $("<ul />");
+        ul.addClass("nested");
+        span.click(() => {
+            ul.toggleClass("active");
+            span.toggleClass("caret-down");
+        });
+        rootTestCase.childrenSuites.forEach(suite => {
+            ul.append(BuildTreeSuiteView(suite));
+            rootTestCase.allTestCases = rootTestCase.allTestCases + suite.allTestCases;
+        });
+        rootTestCase.testPointList.forEach(point => {
+            ul.append(BuildTreeTestView(point));
+        });
+        tr.append(TextView("Total Count:", 3));
+        tr.append(TextView(rootTestCase.allTestCases, 4));
+        li.append(ul);
+        return li;
+    }
+    function BuildTreeTestView(point) {
+        let table = $("<table />");
+        let tr = $("<tr />");
+        tr.addClass("testClass");
+        tr.append(TextView("Test:", 1));
+        tr.append(TextView(point.testCaseName, 2));
+        tr.append(TextView("Type:", 1));
+        tr.append(TextView(point.testCaseType, 2));
+        tr.append(TextView("State:", 1));
+        tr.append(TextView(point.state, 2));
+        tr.append(TextView("Outcome:", 1));
+        tr.append(TextView(point.outCome, 2));
+        tr.append(TextView("Assigned To:", 1));
+        tr.append(TextView(point.assignedTo, 2));
+        tr.append(TextView("Configuration:", 1));
+        tr.append(TextView(point.configuration, 2));
+        tr.append(TextView("Failure Type:", 1));
+        tr.append(TextView(point.failureType, 2));
+        tr.append(TextView("Passed:", 1));
+        tr.append(TextView(point.passedTests, 2));
+        tr.append(TextView("Incomplit:", 1));
+        tr.append(TextView(point.incompliteTests, 2));
+        tr.append(TextView("Not Applicable:", 1));
+        tr.append(TextView(point.notApplicableTests, 2));
+        tr.append(TextView("Total:", 1));
+        tr.append(TextView(point.totalTests, 2));
+        tr.append(TextView("Comment:", 1));
+        tr.append(TextView(point.comment ? point.comment : "", 2));
+        table.append(tr);
+        return table;
+    }
+    function TextView(lable, size) {
+        let textSpan = $("<td />");
+        textSpan.text(lable);
+        switch (size) {
+            case 1: {
+                textSpan.addClass("testLableInfo");
+                break;
+            }
+            case 2: {
+                textSpan.addClass("testInfo");
+                break;
+            }
+            case 3: {
+                textSpan.addClass("suitLable");
+                break;
+            }
+            case 4: {
+                textSpan.addClass("suitInfo");
+                break;
+            }
+            case 5: {
+                textSpan.addClass("planeLable");
+                break;
+            }
+            case 6: {
+                textSpan.addClass("planeInfo");
+                break;
+            }
+        }
+        return textSpan;
+    }
+    function BuildGraphInfo(projectName, selectedPlane) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let SumSuites = new Array();
+            let suites = yield client.getTestSuitesForPlan(projectName, selectedPlane);
+            if (suites.length > 0) {
+                suites.forEach((suite) => __awaiter(this, void 0, void 0, function* () {
+                    SumSuites.push(yield GetSuiteSum(suite));
+                }));
+            }
+            BuildGraphView(SumSuites);
+        });
+    }
+    function GetSuiteSum(suite) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let suiteSum = new SumeSuite();
+            if (suite.name == undefined) {
+                suiteSum.SuiteName = "Main";
+            }
+            else {
+                suiteSum.SuiteName = suite.name;
+            }
+            suiteSum.complateCount = 0;
+            suiteSum.inProgressCount = 0;
+            suiteSum.maxValueCount = 0;
+            suiteSum.noneCount = 0;
+            suiteSum.notReadyCount = 0;
+            suiteSum.readyCount = 0;
+            suiteSum.totalPoints = suite.testCaseCount;
+            let points = yield client.getPoints(suite.project.name, +suite.plan.id, suite.id);
+            points.forEach(point => {
+                switch (point.state) {
+                    case "completed": {
+                        suiteSum.complateCount += 1;
+                        break;
+                    }
+                    case "inProgress": {
+                        suiteSum.inProgressCount += 1;
+                        break;
+                    }
+                    case "maxValue": {
+                        suiteSum.maxValueCount += 1;
+                        break;
+                    }
+                    case "none": {
+                        suiteSum.noneCount += 1;
+                        break;
+                    }
+                    case "notReady": {
+                        suiteSum.notReadyCount += 1;
+                        break;
+                    }
+                    case "ready": {
+                        suiteSum.readyCount += 1;
+                        break;
+                    }
+                }
+            });
+            return suiteSum;
+        });
+    }
+    function BuildGraphView(SumSuites) {
+        var container = $("#graph-container");
         container.addClass("TestSuit");
-        let SuiteDiv = $("<div />");
-        let ChildrenDiv = $("<div />");
-        let TestPointDiv;
         var gridTestSuiteOptions = {
             height: "30",
-            source: [rootTestCase],
+            source: [SumSuites],
             header: false,
             columns: [
-                { text: "", width: place * indent },
-                { text: "ID", width: 50, index: "suiteId" },
-                { text: "Suite Name", width: 100, index: "suiteName" },
-                { text: "State", width: 80, index: "suiteState" },
-                { text: "Suite Type", width: 100, index: "suiteType" },
-                { text: "Test Case Count", width: 50, index: "testCaseCount" }
+                { text: "Suite Name: ", width: 100, index: "SuiteName" },
+                { text: "Total Tests: ", width: 80, index: "totalPoints" },
+                { text: "Ready: ", width: 100, index: "readyCount" },
+                { text: "Complete: ", width: 50, index: "complateCount" },
+                { text: "In Progress: ", width: 100, index: "inProgressCount" },
+                { text: "Max Value: ", width: 80, index: "maxValueCount" },
+                { text: "None Count: ", width: 100, index: "noneCount" },
+                { text: "Not Ready: ", width: 50, index: "notReadyCount" }
             ]
         };
-        var target = Controls.create(Grids.Grid, SuiteDiv, gridTestSuiteOptions);
-        target.setDataSource([rootTestCase]);
-        if (rootTestCase.childrenSuites != undefined && rootTestCase.childrenSuites.length > 0) {
-            rootTestCase.childrenSuites.forEach(child => {
-                let childDiv = CreateSuiteView(child, place + 1);
-                ChildrenDiv.append(childDiv);
-            });
-        }
-        if (rootTestCase.testPointList != undefined && rootTestCase.testPointList.length > 0) {
-            TestPointDiv = CreateTestCasesView(rootTestCase.testPointList, place + 2);
-        }
-        container.append(SuiteDiv);
-        container.append(ChildrenDiv);
-        container.append(TestPointDiv);
-        return container;
-    }
-    function CreateTestCasesView(pointList, place) {
-        {
-            let container = $("<div />");
-            container.css('background-color', 'ivory');
-            var gridTestCaseOptions = {
-                height: (35 * pointList.length).toString(),
-                source: pointList,
-                header: false,
-                columns: [
-                    { text: "", width: indent * place },
-                    { text: "ID", width: 30, index: "id" },
-                    { text: "Test Case Name", width: 100, index: "testCaseName" },
-                    { text: "Test Case Type", width: 100, index: "testCaseType" },
-                    { text: "State", width: 80, index: "state" },
-                    { text: "OutCome", width: 100, index: "outCome" },
-                    { text: "Assigned To", width: 100, index: "assignedTo" },
-                    { text: "Comment", width: 200, index: "comment" },
-                    { text: "Configuration", width: 150, index: "configuration" },
-                    { text: "Failure Type", width: 100, index: "failureType" },
-                    { text: "", width: indent * 2 },
-                    { text: "Passed", width: 30, index: "passedTests" },
-                    { text: "Incomplite Tests", width: 30, index: "incompliteTests" },
-                    { text: "NotApplicable Tests", width: 30, index: "notApplicableTests" },
-                    { text: "Total Tests", width: 30, index: "totalTests" }
-                ]
-            };
-            var target = Controls.create(Grids.Grid, container, gridTestCaseOptions);
-            target.setDataSource(pointList);
-            return container;
-        }
-    }
-    function BuildGraph(palneFullInfo) {
-        var container = $("#graph-container");
-        container.empty();
+        var target = Controls.create(Grids.Grid, container, gridTestSuiteOptions);
+        target.setDataSource([SumSuites]);
     }
     var id = VSS.getContribution().id;
     VSS.register(id, Init_Page);
