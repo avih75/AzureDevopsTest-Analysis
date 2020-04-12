@@ -2,44 +2,50 @@
 <html lang="en" style="height:100%">
 
 <head>
-	<meta charset="utf-8" />
-	<script src="scripts/VSS.SDK.min.js"></script>
-	<title>Test Analisys Avi Hadad</title>
-	<link rel="stylesheet" href="scripts/style.css" type="text/css" />
+    <meta charset="utf-8" />
+    <script src="scripts/VSS.SDK.min.js"></script>
+    <title>Test Analisys Avi Hadad</title>
+    <link rel="stylesheet" href="scripts/style.css" type="text/css" />
 </head>
 
 <body style="height:100%">
-	<div class="Title">Test Analisys</div>
-	<script type="text/javascript">
-		VSS.init({
-			moduleLoaderConfig: true,
-			explicitNotifyLoaded: true,
-			usePlatformScripts: true,
-			usePlatformStyles: true
-			// configureModuleLoader: true
-		});</script>
-	<div id="Tests" class="selectTitle">
-		<div class="Select">Test Plans : </div>
-		<div id="loading" class="Select"> Loading....</div>
-		<select id="selectPlan" ></select>
-	</div> 
-	<div class="radio-div">
-		<input type="radio" id="male" name="view" value="Table">
-		<label for="Table" class="radio">Table</label>
-		<input type="radio" id="female" name="view" value="Graphs">
-		<label for="Graphs" class="radio">Graphs</label> 
-		<input type="radio" id="female" name="view" value="Querys">
-		<label for="Querys" class="radio">Querys</label>
-		<br>
-	</div>
-	<div id="PlanInfos"></div>
-	<div id="grid-container" class="MainTableDiv"></div>
-	<div id="graph-container"></div>
-	<div id="query-container"></div>
-	<script type="text/javascript">
-		VSS.require(["scripts/app"], function () {
-			VSS.notifyLoadSucceeded();
-		})
-	</script>
+    <div class="Title">Test Analisys</div>
+    <script type="text/javascript">
+        VSS.init({
+            moduleLoaderConfig: true,
+            explicitNotifyLoaded: true,
+            usePlatformScripts: true,
+            usePlatformStyles: true
+                // configureModuleLoader: true
+        });
+    </script>
+    <div id="Tests" class="selectTitle">
+        <div class="Select">Test Plans : </div>
+        <div id="loading" class="Select"> Loading....</div>
+        <select id="selectPlan"></select>
+    </div>
+    <div class="radio-div">
+        <input type="radio" id="male" name="view" value="Suite Table">
+        <label for="Suite Table" class="radio">Suite Table</label>
+        <input type="radio" id="female" name="view" value="Test Table">
+        <label for="Test Table" class="radio">Test Table</label>
+        <input type="radio" id="female" name="view" value="Test Graphs">
+        <label for="Test Graphs" class="radio">Test Graphs</label>
+        <br>
+    </div>
+    <div id="PlanInfos"></div>
+    <div id="grid-container" class="MainTableDiv"></div>
+    <div id="table-container"></div>
+    <div id="graph-container"></div>
+    <script type="text/javascript">
+        VSS.require(["scripts/app", "Charts/Services"], function() {
+            VSS.notifyLoadSucceeded();
+        })
+        VSS.init({
+            usePlatformScripts: true,
+            usePlatformStyles: true
+        });
+    </script>
 </body>
+
 </html>

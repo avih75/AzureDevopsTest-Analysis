@@ -17,7 +17,7 @@
     "grunt-exec": "^1.0.1",
     "grunt-karma": "^3.0.2",
     "grunt-ts": "^6.0.0-beta.22",
-    "karma": "^4.4.1",
+    "karma": "^5.0.1",
     "karma-chai": "^0.1.0",
     "karma-mocha": "^1.2.0",
     "karma-phantomjs-launcher": "^1.0.2",
@@ -32,8 +32,7 @@
     "chart.js": "^2.9.3",
     "es6-promise": "^4.2.8",
     "ts-promise": "^2.2.0",
-    "vss-sdk": "^1.94.1",
-    "vss-web-extension-sdk": "^5.141.0"
+    "vss-sdk": "^1.94.1"
   },
   "main": "index.js",
   "scripts": {

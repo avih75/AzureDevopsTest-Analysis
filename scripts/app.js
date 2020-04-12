@@ -6,7 +6,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTracking/RestClient", "VSS/Controls/Grids", "VSS/Controls"], function (require, exports, TestRestClient, WorkItemManagment, Grids, Controls) {
+define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTracking/RestClient", "VSS/Controls/Grids", "VSS/Controls", "Charts/Services", "Charts/Contracts"], function (require, exports, TestRestClient, WorkItemManagment, Grids, Controls, Services, Contracts_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     let client;
@@ -23,10 +23,10 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
         client = TestRestClient.getClient();
         WIClient = WorkItemManagment.getClient();
         let selectPlan = $("#selectPlan");
-        $("#graph-container").hide();
-        $("#grid-container").hide();
         $("#PlanInfos").hide();
-        $("#query-container").hide();
+        $("#grid-container").hide();
+        $("#table-container").hide();
+        $("#graph-container").hide();
         selectPlan.hide();
         var projectName = VSS.getWebContext().project.name;
         BuildRadioButton();
@@ -34,23 +34,23 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
     }
     function BuildRadioButton() {
         $('input[type=radio][name=view]').change(function () {
-            if (this.value == 'Table') {
+            if (this.value == 'Suite Table') {
                 $("#PlanInfos").show();
                 $("#grid-container").show();
+                $("#table-container").hide();
                 $("#graph-container").hide();
-                $("#query-container").hide();
             }
-            else if (this.value == 'Graphs') {
+            else if (this.value == 'Test Table') {
                 $("#grid-container").hide();
                 $("#PlanInfos").hide();
+                $("#table-container").show();
+                $("#graph-container").hide();
+            }
+            else if (this.value == 'Test Graphs') {
+                $("#grid-container").hide();
+                $("#PlanInfos").hide();
+                $("#table-container").hide();
                 $("#graph-container").show();
-                $("#query-container").hide();
-            }
-            else if (this.value == 'Querys') {
-                $("#grid-container").hide();
-                $("#PlanInfos").hide();
-                $("#graph-container").hide();
-                $("#query-container").show();
             }
         });
     }
@@ -58,7 +58,7 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
         selectPlan.change(function () {
             let selectedPlan = $(this).children("option:selected").val();
             BuildTableTestGrid(projectName, selectedPlan);
-            BuildGraphInfo(projectName, selectedPlan);
+            BuildTestsSum(projectName, selectedPlan);
         });
         client._setInitializationPromise(client.authTokenManager.getAuthToken());
         client.getPlans(projectName).then((plans) => {
@@ -70,7 +70,7 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
             $("#loading").hide();
             selectPlan.show();
             BuildTableTestGrid(projectName, lastPlan);
-            BuildGraphInfo(projectName, lastPlan);
+            BuildTestsSum(projectName, lastPlan);
         });
     }
     function BuildTableTestGrid(projectName, testPlanId) {
@@ -83,7 +83,6 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
             let palneFullInfo = yield GetTestPlanInfo(selectedPlan, testPlanId, planInfo, projectName);
             let rootTestCase = ReArangeSuiteList(palneFullInfo);
             BuildTreeView(rootTestCase);
-            BuildGraphInfo(projectName, testPlanId);
         });
     }
     function GetTestPlanInfo(selectedPlan, testPlanId, planInfo, projectName) {
@@ -288,16 +287,18 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
         }
         return textSpan;
     }
-    function BuildGraphInfo(projectName, selectedPlane) {
+    function BuildTestsSum(projectName, selectedPlane) {
         return __awaiter(this, void 0, void 0, function* () {
+            let planInfo = $("#PlanInfos");
+            planInfo.empty();
             let SumSuites = new Array();
             let suites = yield client.getTestSuitesForPlan(projectName, selectedPlane);
-            if (suites.length > 0) {
-                suites.forEach((suite) => __awaiter(this, void 0, void 0, function* () {
-                    SumSuites.push(yield GetSuiteSum(suite));
-                }));
+            for (const suite of suites) {
+                SumSuites.push(yield GetSuiteSum(suite));
             }
-            BuildGraphView(SumSuites);
+            ;
+            BuildTestsView(SumSuites);
+            BuildGraph(SumSuites);
         });
     }
     function GetSuiteSum(suite) {
@@ -317,57 +318,119 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
             suiteSum.readyCount = 0;
             suiteSum.totalPoints = suite.testCaseCount;
             let points = yield client.getPoints(suite.project.name, +suite.plan.id, suite.id);
-            points.forEach(point => {
+            for (const point of points) {
                 switch (point.state) {
-                    case "completed": {
+                    case "Completed": {
                         suiteSum.complateCount += 1;
                         break;
                     }
-                    case "inProgress": {
+                    case "InProgress": {
                         suiteSum.inProgressCount += 1;
                         break;
                     }
-                    case "maxValue": {
+                    case "MaxValue": {
                         suiteSum.maxValueCount += 1;
                         break;
                     }
-                    case "none": {
+                    case "None": {
                         suiteSum.noneCount += 1;
                         break;
                     }
-                    case "notReady": {
+                    case "NotReady": {
                         suiteSum.notReadyCount += 1;
                         break;
                     }
-                    case "ready": {
+                    case "Ready": {
                         suiteSum.readyCount += 1;
                         break;
                     }
                 }
-            });
+            }
+            ;
             return suiteSum;
         });
     }
-    function BuildGraphView(SumSuites) {
-        var container = $("#graph-container");
+    function BuildTestsView(SumSuites) {
+        var graphContainer = $("#table-container");
+        graphContainer.empty();
+        let container = $("<div />");
         container.addClass("TestSuit");
         var gridTestSuiteOptions = {
-            height: "30",
-            source: [SumSuites],
-            header: false,
+            height: (30 * SumSuites.length + 1).toString(),
+            source: SumSuites,
+            header: true,
             columns: [
-                { text: "Suite Name: ", width: 100, index: "SuiteName" },
-                { text: "Total Tests: ", width: 80, index: "totalPoints" },
-                { text: "Ready: ", width: 100, index: "readyCount" },
-                { text: "Complete: ", width: 50, index: "complateCount" },
-                { text: "In Progress: ", width: 100, index: "inProgressCount" },
-                { text: "Max Value: ", width: 80, index: "maxValueCount" },
-                { text: "None Count: ", width: 100, index: "noneCount" },
-                { text: "Not Ready: ", width: 50, index: "notReadyCount" }
+                { text: "Suite Name", width: 100, index: "SuiteName" },
+                { text: "Total", width: 80, index: "totalPoints" },
+                { text: "Complete", width: 80, index: "complateCount" },
+                { text: "In Progress", width: 80, index: "inProgressCount" },
+                { text: "Max Value", width: 80, index: "maxValueCount" },
+                { text: "Ready", width: 80, index: "readyCount" },
+                { text: "Not Ready", width: 80, index: "notReadyCount" },
+                { text: "None Count", width: 80, index: "noneCount" }
             ]
         };
         var target = Controls.create(Grids.Grid, container, gridTestSuiteOptions);
-        target.setDataSource([SumSuites]);
+        target.setDataSource(SumSuites);
+        graphContainer.append(container);
+    }
+    function BuildGraph(SumSuites) {
+        let labels = [];
+        let complate = [];
+        let inProgress = [];
+        let maxValue = [];
+        let none = [];
+        let notReady = [];
+        let ready = [];
+        for (let i = 0; i < SumSuites.length; i++) {
+            labels.push(SumSuites[i].SuiteName + " total: " + SumSuites[i].totalPoints);
+            complate.push([i, SumSuites[i].complateCount]);
+            inProgress.push([i, SumSuites[i].inProgressCount]);
+            maxValue.push([i, SumSuites[i].maxValueCount]);
+            none.push([i, SumSuites[i].noneCount]);
+            notReady.push([i, SumSuites[i].notReadyCount]);
+            ready.push([i, SumSuites[i].readyCount]);
+        }
+        let series = [];
+        series.push({
+            name: "Complate",
+            data: complate
+        });
+        series.push({
+            name: "In Progress",
+            data: inProgress
+        });
+        series.push({
+            name: "Max Value",
+            data: maxValue
+        });
+        series.push({
+            name: "None",
+            data: none
+        });
+        series.push({
+            name: "Not Ready",
+            data: notReady
+        });
+        series.push({
+            name: "Ready",
+            data: ready
+        });
+        var $container = $('#graph-container');
+        var chartOptions = {
+            "hostOptions": {
+                "height": 500,
+                "width": 1200
+            },
+            "chartType": Contracts_1.ChartTypesConstants.StackedColumn,
+            "xAxis": {
+                labelValues: labels
+            },
+            "series": series
+        };
+        Services.ChartsService.getService().then((chartService) => {
+            chartService.createChart($container, chartOptions);
+        });
     }
     var id = VSS.getContribution().id;
     VSS.register(id, Init_Page);
