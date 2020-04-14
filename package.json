@@ -1,51 +1,51 @@
 {
-  "name": "test-analisys",
-  "version": "1.1.0",
-  "private": true,
-  "devDependencies": {
-    "@types/jquery": "^2.0.48",
-    "@types/knockout": "^3.4.39",
-    "@types/q": "0.0.32",
-    "@types/react": "^15.0.12",
-    "@types/react-dom": "^0.14.23",
-    "@types/requirejs": "^2.1.28",
-    "chai": "^3.5.0",
-    "grunt": "^1.0.4",
-    "grunt-cli": "^1.2.0",
-    "grunt-contrib-clean": "^1.0.0",
-    "grunt-contrib-copy": "^1.0.0",
-    "grunt-exec": "^1.0.1",
-    "grunt-karma": "^3.0.2",
-    "grunt-ts": "^6.0.0-beta.22",
-    "karma": "^5.0.1",
-    "karma-chai": "^0.1.0",
-    "karma-mocha": "^1.2.0",
-    "karma-phantomjs-launcher": "^1.0.2",
-    "karma-requirejs": "^1.1.0",
-    "mocha": "^7.1.1",
-    "requirejs": "^2.3.2",
-    "typescript": "^2.9.2",
-    "typings": "^2.1.1",
-    "vss-web-extension-sdk": "^5.141.0"
-  },
-  "dependencies": {
-    "chart.js": "^2.9.3",
-    "es6-promise": "^4.2.8",
-    "ts-promise": "^2.2.0",
-    "vss-sdk": "^1.94.1"
-  },
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "postinstall": "typings install"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/avih75/AzureDevopsTest-Analisys.git"
-  },
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/avih75/AzureDevopsTest-Analisys/issues"
-  }
+    "name": "test-analysis",
+    "version": "1.1.0",
+    "private": true,
+    "devDependencies": {
+        "@types/jquery": "^2.0.48",
+        "@types/knockout": "^3.4.39",
+        "@types/q": "0.0.32",
+        "@types/react": "^15.0.12",
+        "@types/react-dom": "^0.14.23",
+        "@types/requirejs": "^2.1.28",
+        "chai": "^3.5.0",
+        "grunt": "^1.0.4",
+        "grunt-cli": "^1.2.0",
+        "grunt-contrib-clean": "^1.0.0",
+        "grunt-contrib-copy": "^1.0.0",
+        "grunt-exec": "^1.0.1",
+        "grunt-karma": "^3.0.2",
+        "grunt-ts": "^6.0.0-beta.22",
+        "karma": "^5.0.1",
+        "karma-chai": "^0.1.0",
+        "karma-mocha": "^1.2.0",
+        "karma-phantomjs-launcher": "^1.0.2",
+        "karma-requirejs": "^1.1.0",
+        "mocha": "^7.1.1",
+        "requirejs": "^2.3.2",
+        "typescript": "^2.9.2",
+        "typings": "^2.1.1",
+        "vss-web-extension-sdk": "^5.141.0"
+    },
+    "dependencies": {
+        "chart.js": "^2.9.3",
+        "es6-promise": "^4.2.8",
+        "ts-promise": "^2.2.0",
+        "vss-sdk": "^1.94.1"
+    },
+    "main": "index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "postinstall": "typings install"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/avih75/AzureDevopsTest-Analysis.git"
+    },
+    "author": "",
+    "license": "ISC",
+    "bugs": {
+        "url": "https://github.com/avih75/AzureDevopsTest-Analysis/issues"
+    }
 }

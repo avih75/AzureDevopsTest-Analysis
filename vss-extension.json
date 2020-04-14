@@ -1,12 +1,12 @@
 {
     "manifestVersion": 1,
-    "id": "Test-Analisys",
-    "version": "1.0.3",
+    "id": "Test-Analysis",
+    "version": "1.0.10",
     "name": "Solution to Analizes your Tests",
-    "description": "A sample Visual Studio Services extension.",
+    "description": "A Simple Test Plane Analysis.",
     "publisher": "AviHadad",
     "categories": [
-        "Test"
+        "Azure Test Plans"
     ],
     "targets": [{
         "id": "Microsoft.VisualStudio.Services",
@@ -17,16 +17,16 @@
     },
     "demands": ["contribution/ms.vss-dashboards-web.widget-sdk-version-2", "contribution/ms.vss-web.charts-service"],
     "contributions": [{
-        "id": "Test_Analisys",
+        "id": "Test_Analysis",
         "type": "ms.vss-web.hub",
-        "description": "Adds a 'Analisys' hub to the test hub group.",
+        "description": "Adds a 'Analysis' hub to the test hub group.",
         "targets": [
             "ms.vss-test-web.test-hub-group"
         ],
         "properties": {
-            "name": "Analisys",
+            "name": "Analysis",
             "order": 99,
-            "uri": "Test-Analisys.html"
+            "uri": "Test-Analysis.html"
         }
     }],
     "scopes": [
@@ -36,8 +36,39 @@
         "vso.test_write",
         "vso.loadtest"
     ],
+    "tags": [
+        "Test Plan",
+        "Tests",
+        "Analysis",
+        "Graphs",
+        "Points",
+        "Hub"
+    ],
+    "content": {
+        "details": {
+            "path": "details.md"
+        }
+    },
+    "repository": {
+        "type": "git",
+        "uri": "https://github.com/avih75/AzureDevopsTest-Analysis"
+    },
+    "links": {
+        "support": {
+            "uri": "https://github.com/avih75/AzureDevopsTest-Analysis/issues"
+        },
+        "learn": {
+            "uri": "https://github.com/avih75/AzureDevopsTest-Analysis/blob/master/README.md"
+        },
+        "repository": {
+            "uri": "https://github.com/avih75/AzureDevopsTest-Analysis"
+        },
+        "issues": {
+            "uri": "https://github.com/avih75/AzureDevopsTest-Analysis/issues"
+        }
+    },
     "files": [{
-            "path": "Test-Analisys.html",
+            "path": "Test-Analysis.html",
             "addressable": true
         },
         {
