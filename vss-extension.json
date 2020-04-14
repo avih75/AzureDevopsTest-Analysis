@@ -1,12 +1,12 @@
 {
     "manifestVersion": 1,
     "id": "Test-Analysis",
-    "version": "1.0.10",
+    "version": "1.0.14",
     "name": "Solution to Analizes your Tests",
-    "description": "A Simple Test Plane Analysis.",
+    "description": "A Simple Test Plan Analysis.",
     "publisher": "AviHadad",
     "categories": [
-        "Azure Test Plans"
+        "Test"
     ],
     "targets": [{
         "id": "Microsoft.VisualStudio.Services",
@@ -81,7 +81,7 @@
             "addressable": true
         },
         {
-            "path": "images/logo.png",
+            "path": "images",
             "addressable": true
         }
     ]
