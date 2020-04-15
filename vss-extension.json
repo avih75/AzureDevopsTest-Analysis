@@ -1,7 +1,7 @@
 {
     "manifestVersion": 1,
     "id": "Test-Analysis",
-    "version": "1.0.15",
+    "version": "1.0.42",
     "name": "Solution to Analizes your Tests",
     "description": "A Simple Test Plan Analysis.",
     "publisher": "AviHadad",

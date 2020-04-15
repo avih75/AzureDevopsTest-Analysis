@@ -62,15 +62,16 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
         });
         client._setInitializationPromise(client.authTokenManager.getAuthToken());
         client.getPlans(projectName).then((plans) => {
-            let lastPlan;
+            let firstPlan = 0;
             plans.forEach(plan => {
                 selectPlan.append(new Option(plan.name, plan.id.toString()));
-                lastPlan = plan.id;
+                if (firstPlan == 0)
+                    firstPlan = plan.id;
             });
             $("#loading").hide();
             selectPlan.show();
-            BuildTableTestGrid(projectName, lastPlan);
-            BuildTestsSum(projectName, lastPlan);
+            BuildTableTestGrid(projectName, firstPlan);
+            BuildTestsSum(projectName, firstPlan);
         });
     }
     function BuildTableTestGrid(projectName, testPlanId) {
@@ -144,25 +145,40 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
             let testPoints = yield client.getPoints(projectName, testPlanId, suiteId);
             for (const testPoint of testPoints) {
                 let TestCaseWI = yield WIClient.getWorkItem(+testPoint.testCase.id);
-                let x = TestCaseWI.fields["System.Title"].toString();
-                let run = yield client.getTestRunById(projectName, +testPoint.lastTestRun.id);
+                let testName = TestCaseWI.fields["System.Title"].toString();
+                let incomplite = 0;
+                let notApplicable = 0;
+                let passed = 0;
+                let total = 0;
+                let postProcess = "";
+                let stepFaild = "";
+                if (testPoint.lastTestRun.id != "0") {
+                    let run = yield client.getTestRunById(projectName, +testPoint.lastTestRun.id);
+                    incomplite = run.incompleteTests;
+                    notApplicable = run.notApplicableTests;
+                    passed = run.passedTests;
+                    total = run.totalTests;
+                    postProcess = run.postProcessState;
+                    let x = yield client.getTestResultById(projectName, run.id, +testPoint.lastResult.id);
+                    stepFaild = x.resolutionState;
+                }
                 let testPointModel = {
+                    incompliteTests: incomplite,
+                    notApplicableTests: notApplicable,
+                    passedTests: passed,
+                    postProcessState: postProcess,
+                    totalTests: total,
                     id: testPoint.id.toString(),
                     assignedTo: testPoint.assignedTo.displayName,
                     comment: testPoint.comment,
                     outCome: testPoint.outcome,
                     lastTestRun: testPoint.lastTestRun.name,
                     failureType: testPoint.failureType,
-                    state: testPoint.state,
                     testCaseId: testPoint.testCase.id,
-                    testCaseName: x,
+                    FaildStep: stepFaild,
+                    testCaseName: testName,
                     testCaseType: testPoint.testCase.type,
-                    configuration: testPoint.configuration.name,
-                    incompliteTests: run.incompleteTests,
-                    notApplicableTests: run.notApplicableTests,
-                    passedTests: run.passedTests,
-                    totalTests: run.passedTests,
-                    postProcessState: run.postProcessState
+                    configuration: testPoint.configuration.name
                 };
                 TestPointList.push(testPointModel);
             }
@@ -226,15 +242,10 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
         return li;
     }
     function BuildTreeTestView(point) {
-        let table = $("<table />");
         let tr = $("<tr />");
         tr.addClass("testClass");
         tr.append(TextView("Test:", 1));
         tr.append(TextView(point.testCaseName, 2));
-        tr.append(TextView("Type:", 1));
-        tr.append(TextView(point.testCaseType, 2));
-        tr.append(TextView("State:", 1));
-        tr.append(TextView(point.state, 2));
         tr.append(TextView("Outcome:", 1));
         tr.append(TextView(point.outCome, 2));
         tr.append(TextView("Assigned To:", 1));
@@ -251,10 +262,11 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
         tr.append(TextView(point.notApplicableTests, 2));
         tr.append(TextView("Total:", 1));
         tr.append(TextView(point.totalTests, 2));
+        tr.append(TextView("Type:", 1));
+        tr.append(TextView(point.testCaseType, 2));
         tr.append(TextView("Comment:", 1));
         tr.append(TextView(point.comment ? point.comment : "", 2));
-        table.append(tr);
-        return table;
+        return tr;
     }
     function TextView(lable, size) {
         let textSpan = $("<td />");
@@ -310,38 +322,38 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
             else {
                 suiteSum.SuiteName = suite.name;
             }
-            suiteSum.complateCount = 0;
-            suiteSum.inProgressCount = 0;
-            suiteSum.maxValueCount = 0;
-            suiteSum.noneCount = 0;
-            suiteSum.notReadyCount = 0;
-            suiteSum.readyCount = 0;
+            suiteSum.Blocked = 0;
+            suiteSum.Paused = 0;
+            suiteSum.Passed = 0;
+            suiteSum.Failed = 0;
+            suiteSum.Unspecified = 0;
+            suiteSum.NotApplicable = 0;
             suiteSum.totalPoints = suite.testCaseCount;
             let points = yield client.getPoints(suite.project.name, +suite.plan.id, suite.id);
             for (const point of points) {
-                switch (point.state) {
-                    case "Completed": {
-                        suiteSum.complateCount += 1;
+                switch (point.outcome) {
+                    case "NotApplicable": {
+                        suiteSum.NotApplicable += 1;
                         break;
                     }
-                    case "InProgress": {
-                        suiteSum.inProgressCount += 1;
+                    case "Blocked": {
+                        suiteSum.Blocked += 1;
                         break;
                     }
-                    case "MaxValue": {
-                        suiteSum.maxValueCount += 1;
+                    case "Paused": {
+                        suiteSum.Paused += 1;
                         break;
                     }
-                    case "None": {
-                        suiteSum.noneCount += 1;
+                    case "Passed": {
+                        suiteSum.Passed += 1;
                         break;
                     }
-                    case "NotReady": {
-                        suiteSum.notReadyCount += 1;
+                    case "Failed": {
+                        suiteSum.Failed += 1;
                         break;
                     }
-                    case "Ready": {
-                        suiteSum.readyCount += 1;
+                    case "Unspecified": {
+                        suiteSum.Unspecified += 1;
                         break;
                     }
                 }
@@ -375,48 +387,49 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
         graphContainer.append(container);
     }
     function BuildGraph(SumSuites) {
+        let Paused = [];
+        let Blocked = [];
+        let Passed = [];
+        let Failed = [];
+        let Unspecified = [];
+        let NotApplicable = [];
         let labels = [];
-        let complate = [];
-        let inProgress = [];
-        let maxValue = [];
-        let none = [];
-        let notReady = [];
-        let ready = [];
         for (let i = 0; i < SumSuites.length; i++) {
             labels.push(SumSuites[i].SuiteName + " total: " + SumSuites[i].totalPoints);
-            complate.push([i, SumSuites[i].complateCount]);
-            inProgress.push([i, SumSuites[i].inProgressCount]);
-            maxValue.push([i, SumSuites[i].maxValueCount]);
-            none.push([i, SumSuites[i].noneCount]);
-            notReady.push([i, SumSuites[i].notReadyCount]);
-            ready.push([i, SumSuites[i].readyCount]);
+            Passed.push([i, SumSuites[i].Passed]);
+            Failed.push([i, SumSuites[i].Failed]);
+            Unspecified.push([i, SumSuites[i].Unspecified]);
+            NotApplicable.push([i, SumSuites[i].NotApplicable]);
+            Paused.push([i, SumSuites[i].Paused]);
+            Blocked.push([i, SumSuites[i].Blocked]);
         }
         let series = [];
         series.push({
-            name: "Complate",
-            data: complate
+            name: "Paused",
+            data: Paused
         });
         series.push({
-            name: "In Progress",
-            data: inProgress
+            name: "Blocked",
+            data: Blocked
         });
         series.push({
-            name: "Max Value",
-            data: maxValue
+            name: "Not Applicable",
+            data: NotApplicable
         });
         series.push({
-            name: "None",
-            data: none
+            name: "Passed",
+            data: Passed
         });
         series.push({
-            name: "Not Ready",
-            data: notReady
+            name: "Failed",
+            data: Failed
         });
         series.push({
-            name: "Ready",
-            data: ready
+            name: "Not Run",
+            data: Unspecified
         });
         var $container = $('#graph-container');
+        $container.empty();
         var chartOptions = {
             "hostOptions": {
                 "height": 500,
@@ -424,6 +437,8 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
             },
             "chartType": Contracts_1.ChartTypesConstants.StackedColumn,
             "xAxis": {
+                canZoom: true,
+                suppressLabelTruncation: true,
                 labelValues: labels
             },
             "series": series
