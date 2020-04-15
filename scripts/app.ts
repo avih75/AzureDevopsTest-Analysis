@@ -95,10 +95,13 @@ function BuildRadioButton() {
     });
 }
 function BuildSelect(projectName: string, selectPlan: JQuery) {
+    selectPlan.attr("disabled","true");    
     selectPlan.change(function () {
+        selectPlan.attr("disabled","true");
         let selectedPlan = $(this).children("option:selected").val();
         BuildTableTestGrid(projectName, selectedPlan);
         BuildTestsSum(projectName, selectedPlan);
+        selectPlan.removeAttr("disabled");
     });
     client._setInitializationPromise(client.authTokenManager.getAuthToken());
     client.getPlans(projectName).then((plans) => {
@@ -113,6 +116,7 @@ function BuildSelect(projectName: string, selectPlan: JQuery) {
         BuildTableTestGrid(projectName, firstPlan);
         BuildTestsSum(projectName, firstPlan);
     })
+    selectPlan.removeAttr("disabled");
 }
 async function BuildTableTestGrid(projectName: string, testPlanId: number): Promise<void> {
     let container = $("#grid-container");

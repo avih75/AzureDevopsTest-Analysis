@@ -55,10 +55,13 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
         });
     }
     function BuildSelect(projectName, selectPlan) {
+        selectPlan.attr("disabled", "true");
         selectPlan.change(function () {
+            selectPlan.attr("disabled", "true");
             let selectedPlan = $(this).children("option:selected").val();
             BuildTableTestGrid(projectName, selectedPlan);
             BuildTestsSum(projectName, selectedPlan);
+            selectPlan.removeAttr("disabled");
         });
         client._setInitializationPromise(client.authTokenManager.getAuthToken());
         client.getPlans(projectName).then((plans) => {
@@ -73,6 +76,7 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
             BuildTableTestGrid(projectName, firstPlan);
             BuildTestsSum(projectName, firstPlan);
         });
+        selectPlan.removeAttr("disabled");
     }
     function BuildTableTestGrid(projectName, testPlanId) {
         return __awaiter(this, void 0, void 0, function* () {
