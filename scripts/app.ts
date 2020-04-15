@@ -52,11 +52,12 @@ class SumeSuite {
     SuiteName: string;
     Passed: number;
     Failed: number;
-    Unspecified: number;
+    NotRun: number;
     totalPoints: number;
     NotApplicable: number;
+    InProgress: number;
     Paused: number;
-    Blocked:number;
+    Blocked: number;
 }
 function Init_Page(): void {
     client = TestRestClient.getClient();
@@ -182,6 +183,7 @@ async function GetTestPoints(projectName: string, testPlanId: number, suiteId: n
         let total: number = 0;
         let postProcess: string = "";
         let stepFaild: string = "";
+        let outcome: string = testPoint.outcome;
         if (testPoint.lastTestRun.id != "0") {
             let run = await client.getTestRunById(projectName, +testPoint.lastTestRun.id);
             incomplite = run.incompleteTests;
@@ -190,8 +192,15 @@ async function GetTestPoints(projectName: string, testPlanId: number, suiteId: n
             total = run.totalTests;
             postProcess = run.postProcessState;
             let x = await client.getTestResultById(projectName, run.id, +testPoint.lastResult.id)
-
+            if (x.outcome==undefined)
+            {
+                outcome = "In Progress";
+            }
             stepFaild = x.resolutionState;
+        }
+        if (outcome=="Unspecified")
+        {
+            outcome="Not Run";
         }
         let testPointModel: TestPointModel = {
             incompliteTests: incomplite,
@@ -202,7 +211,7 @@ async function GetTestPoints(projectName: string, testPlanId: number, suiteId: n
             id: testPoint.id.toString(),
             assignedTo: testPoint.assignedTo.displayName,
             comment: testPoint.comment,
-            outCome: testPoint.outcome,
+            outCome: outcome,
             lastTestRun: testPoint.lastTestRun.name,
             failureType: testPoint.failureType,
             testCaseId: testPoint.testCase.id,
@@ -271,7 +280,7 @@ function BuildTreeSuiteView(rootTestCase: TestSuiteModel) {
     li.append(ul);
     return li;
 }
-function BuildTreeTestView(point: TestPointModel) { 
+function BuildTreeTestView(point: TestPointModel) {
     let tr = $("<tr />");
     tr.addClass("testClass");
     tr.append(TextView("Test:", 1));
@@ -295,7 +304,7 @@ function BuildTreeTestView(point: TestPointModel) {
     tr.append(TextView("Type:", 1));
     tr.append(TextView(point.testCaseType, 2));
     tr.append(TextView("Comment:", 1));
-    tr.append(TextView(point.comment ? point.comment : "", 2)); 
+    tr.append(TextView(point.comment ? point.comment : "", 2));
     return tr;
 }
 function TextView(lable: any, size: number) {
@@ -353,12 +362,17 @@ async function GetSuiteSum(suite: TestSuite) {
     suiteSum.Paused = 0
     suiteSum.Passed = 0
     suiteSum.Failed = 0
-    suiteSum.Unspecified = 0
+    suiteSum.NotRun = 0
     suiteSum.NotApplicable = 0
+    suiteSum.InProgress = 0
     suiteSum.totalPoints = suite.testCaseCount
     let points = await client.getPoints(suite.project.name, +suite.plan.id, suite.id);
     for (const point of points) {
         switch (point.outcome) {
+            case "None": {
+                suiteSum.InProgress += 1;
+                break;
+            }
             case "NotApplicable": {
                 suiteSum.NotApplicable += 1;
                 break;
@@ -380,7 +394,7 @@ async function GetSuiteSum(suite: TestSuite) {
                 break;
             }
             case "Unspecified": {
-                suiteSum.Unspecified += 1;
+                suiteSum.NotRun += 1;
                 break;
             }
         }
@@ -416,17 +430,19 @@ function BuildGraph(SumSuites: Array<SumeSuite>) {
     let Blocked = [];
     let Passed = [];
     let Failed = [];
-    let Unspecified = [];
+    let NotRun = [];
     let NotApplicable = [];
+    let InProgress = [];
     let labels = [];
     for (let i = 0; i < SumSuites.length; i++) {
         labels.push(SumSuites[i].SuiteName + " total: " + SumSuites[i].totalPoints);
         Passed.push([i, SumSuites[i].Passed]);
         Failed.push([i, SumSuites[i].Failed]);
-        Unspecified.push([i, SumSuites[i].Unspecified]);
+        NotRun.push([i, SumSuites[i].NotRun]);
+        InProgress.push([i, SumSuites[i].InProgress]);
         NotApplicable.push([i, SumSuites[i].NotApplicable]);
         Paused.push([i, SumSuites[i].Paused]);
-        Blocked.push([i, SumSuites[i].Blocked]); 
+        Blocked.push([i, SumSuites[i].Blocked]);
     }
     let series = [];
     series.push({
@@ -450,8 +466,12 @@ function BuildGraph(SumSuites: Array<SumeSuite>) {
         data: Failed
     });
     series.push({
+        name: "In Progress",
+        data: InProgress
+    }); InProgress
+    series.push({
         name: "Not Run",
-        data: Unspecified
+        data: NotRun
     });
     var $container = $('#graph-container');
     $container.empty();

@@ -152,6 +152,7 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
                 let total = 0;
                 let postProcess = "";
                 let stepFaild = "";
+                let outcome = testPoint.outcome;
                 if (testPoint.lastTestRun.id != "0") {
                     let run = yield client.getTestRunById(projectName, +testPoint.lastTestRun.id);
                     incomplite = run.incompleteTests;
@@ -160,7 +161,13 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
                     total = run.totalTests;
                     postProcess = run.postProcessState;
                     let x = yield client.getTestResultById(projectName, run.id, +testPoint.lastResult.id);
+                    if (x.outcome == undefined) {
+                        outcome = "In Progress";
+                    }
                     stepFaild = x.resolutionState;
+                }
+                if (outcome == "Unspecified") {
+                    outcome = "Not Run";
                 }
                 let testPointModel = {
                     incompliteTests: incomplite,
@@ -171,7 +178,7 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
                     id: testPoint.id.toString(),
                     assignedTo: testPoint.assignedTo.displayName,
                     comment: testPoint.comment,
-                    outCome: testPoint.outcome,
+                    outCome: outcome,
                     lastTestRun: testPoint.lastTestRun.name,
                     failureType: testPoint.failureType,
                     testCaseId: testPoint.testCase.id,
@@ -326,12 +333,17 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
             suiteSum.Paused = 0;
             suiteSum.Passed = 0;
             suiteSum.Failed = 0;
-            suiteSum.Unspecified = 0;
+            suiteSum.NotRun = 0;
             suiteSum.NotApplicable = 0;
+            suiteSum.InProgress = 0;
             suiteSum.totalPoints = suite.testCaseCount;
             let points = yield client.getPoints(suite.project.name, +suite.plan.id, suite.id);
             for (const point of points) {
                 switch (point.outcome) {
+                    case "None": {
+                        suiteSum.InProgress += 1;
+                        break;
+                    }
                     case "NotApplicable": {
                         suiteSum.NotApplicable += 1;
                         break;
@@ -353,7 +365,7 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
                         break;
                     }
                     case "Unspecified": {
-                        suiteSum.Unspecified += 1;
+                        suiteSum.NotRun += 1;
                         break;
                     }
                 }
@@ -391,14 +403,16 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
         let Blocked = [];
         let Passed = [];
         let Failed = [];
-        let Unspecified = [];
+        let NotRun = [];
         let NotApplicable = [];
+        let InProgress = [];
         let labels = [];
         for (let i = 0; i < SumSuites.length; i++) {
             labels.push(SumSuites[i].SuiteName + " total: " + SumSuites[i].totalPoints);
             Passed.push([i, SumSuites[i].Passed]);
             Failed.push([i, SumSuites[i].Failed]);
-            Unspecified.push([i, SumSuites[i].Unspecified]);
+            NotRun.push([i, SumSuites[i].NotRun]);
+            InProgress.push([i, SumSuites[i].InProgress]);
             NotApplicable.push([i, SumSuites[i].NotApplicable]);
             Paused.push([i, SumSuites[i].Paused]);
             Blocked.push([i, SumSuites[i].Blocked]);
@@ -425,8 +439,13 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
             data: Failed
         });
         series.push({
+            name: "In Progress",
+            data: InProgress
+        });
+        InProgress;
+        series.push({
             name: "Not Run",
-            data: Unspecified
+            data: NotRun
         });
         var $container = $('#graph-container');
         $container.empty();
