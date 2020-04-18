@@ -164,11 +164,14 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
                     passed = run.passedTests;
                     total = run.totalTests;
                     postProcess = run.postProcessState;
-                    let x = yield client.getTestResultById(projectName, run.id, +testPoint.lastResult.id);
-                    if (x.outcome == undefined) {
+                    let testResult = yield client.getTestResultById(projectName, run.id, +testPoint.lastResult.id);
+                    if (testResult.outcome == undefined) {
                         outcome = "In Progress";
                     }
-                    stepFaild = x.resolutionState;
+                    else if (testResult.customFields != undefined) {
+                        testResult.customFields.forEach(element => {
+                        });
+                    }
                 }
                 if (outcome == "Unspecified") {
                     outcome = "Not Run";
@@ -180,7 +183,7 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
                     postProcessState: postProcess,
                     totalTests: total,
                     id: testPoint.id.toString(),
-                    assignedTo: testPoint.assignedTo.displayName,
+                    assignedTo: testPoint.assignedTo.displayName.split(' <')[0],
                     comment: testPoint.comment,
                     outCome: outcome,
                     lastTestRun: testPoint.lastTestRun.name,
@@ -314,14 +317,35 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
         return __awaiter(this, void 0, void 0, function* () {
             let planInfo = $("#PlanInfos");
             planInfo.empty();
+            let totalTests = {
+                SuiteName: "Test",
+                Blocked: 0,
+                Failed: 0,
+                InProgress: 0,
+                NotApplicable: 0,
+                NotRun: 0,
+                Passed: 0,
+                Paused: 0,
+                totalPoints: 0
+            };
             let SumSuites = new Array();
             let suites = yield client.getTestSuitesForPlan(projectName, selectedPlane);
             for (const suite of suites) {
-                SumSuites.push(yield GetSuiteSum(suite));
+                let newSuite = yield GetSuiteSum(suite);
+                totalTests.Blocked += newSuite.Blocked;
+                totalTests.Failed += newSuite.Failed;
+                totalTests.InProgress += newSuite.InProgress;
+                totalTests.NotApplicable += newSuite.NotApplicable;
+                totalTests.NotRun += newSuite.NotRun;
+                totalTests.Passed += newSuite.Passed;
+                totalTests.Paused += newSuite.Paused;
+                totalTests.totalPoints += newSuite.totalPoints;
+                SumSuites.push(newSuite);
             }
             ;
+            SumSuites.push(totalTests);
             BuildTestsView(SumSuites);
-            BuildGraph(SumSuites);
+            BuildGraphs(SumSuites);
         });
     }
     function GetSuiteSum(suite) {
@@ -402,7 +426,20 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
         target.setDataSource(SumSuites);
         graphContainer.append(container);
     }
-    function BuildGraph(SumSuites) {
+    function BuildGraphs(SumSuites) {
+        var $container = $('#graph-container');
+        $container.empty();
+        let $graph = $("<tr />");
+        var $leftGraph = $("<td />");
+        var $rightGraph = $("<td />");
+        $graph.append($leftGraph);
+        $graph.append($rightGraph);
+        $container.append($graph);
+        let cakeGraphId = SumSuites.length - 1;
+        BuildStackedColumnChart(SumSuites, $leftGraph, $rightGraph);
+        BuildPieChart(SumSuites[cakeGraphId], $rightGraph);
+    }
+    function BuildStackedColumnChart(SumSuites, $leftGraph, $rightGraph) {
         let Paused = [];
         let Blocked = [];
         let Passed = [];
@@ -451,23 +488,45 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
             name: "Not Run",
             data: NotRun
         });
-        var $container = $('#graph-container');
-        $container.empty();
-        var chartOptions = {
-            "hostOptions": {
-                "height": 500,
-                "width": 1200
-            },
+        let chartStackedColumnOptions = {
             "chartType": Contracts_1.ChartTypesConstants.StackedColumn,
             "xAxis": {
                 canZoom: true,
                 suppressLabelTruncation: true,
                 labelValues: labels
             },
-            "series": series
+            "series": series,
+            "click": (clickeEvent) => {
+                $rightGraph.empty();
+                BuildPieChart(SumSuites[clickeEvent.seriesDataIndex], $rightGraph);
+            },
         };
         Services.ChartsService.getService().then((chartService) => {
-            chartService.createChart($container, chartOptions);
+            chartService.createChart($leftGraph, chartStackedColumnOptions);
+        });
+    }
+    function BuildPieChart(selectedSuite, $rightGraph) {
+        let chartPieOptions = {
+            "chartType": Contracts_1.ChartTypesConstants.Pie,
+            "xAxis": {},
+            "series": [{
+                    "data": [
+                        selectedSuite.Paused,
+                        selectedSuite.Blocked,
+                        selectedSuite.NotApplicable,
+                        selectedSuite.Passed,
+                        selectedSuite.Failed,
+                        selectedSuite.InProgress,
+                        selectedSuite.NotRun
+                    ]
+                }],
+            "specializedOptions": {
+                showLabels: true,
+                size: "200"
+            },
+        };
+        Services.ChartsService.getService().then((chartService) => {
+            chartService.createChart($rightGraph, chartPieOptions);
         });
     }
     var id = VSS.getContribution().id;
