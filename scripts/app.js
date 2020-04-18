@@ -318,7 +318,7 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
             let planInfo = $("#PlanInfos");
             planInfo.empty();
             let totalTests = {
-                SuiteName: "Test",
+                SuiteName: "Total",
                 Blocked: 0,
                 Failed: 0,
                 InProgress: 0,
@@ -408,18 +408,19 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
         let container = $("<div />");
         container.addClass("TestSuit");
         var gridTestSuiteOptions = {
-            height: (30 * SumSuites.length + 1).toString(),
+            height: (30 * (SumSuites.length + 1)).toString(),
             source: SumSuites,
             header: true,
             columns: [
                 { text: "Suite Name", width: 100, index: "SuiteName" },
                 { text: "Total", width: 80, index: "totalPoints" },
-                { text: "Complete", width: 80, index: "complateCount" },
-                { text: "In Progress", width: 80, index: "inProgressCount" },
-                { text: "Max Value", width: 80, index: "maxValueCount" },
-                { text: "Ready", width: 80, index: "readyCount" },
-                { text: "Not Ready", width: 80, index: "notReadyCount" },
-                { text: "None Count", width: 80, index: "noneCount" }
+                { text: "Passed", width: 80, index: "Passed" },
+                { text: "Failed", width: 80, index: "Failed" },
+                { text: "Not Run", width: 80, index: "NotRun" },
+                { text: "Not Applicable", width: 80, index: "NotApplicable" },
+                { text: "In Progress", width: 80, index: "InProgress" },
+                { text: "Paused", width: 80, index: "Paused" },
+                { text: "Blocked", width: 80, index: "Blocked" }
             ]
         };
         var target = Controls.create(Grids.Grid, container, gridTestSuiteOptions);
@@ -449,7 +450,7 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
         let InProgress = [];
         let labels = [];
         for (let i = 0; i < SumSuites.length; i++) {
-            labels.push(SumSuites[i].SuiteName + " total: " + SumSuites[i].totalPoints);
+            labels.push(SumSuites[i].SuiteName + " Sum: " + SumSuites[i].totalPoints);
             Passed.push([i, SumSuites[i].Passed]);
             Failed.push([i, SumSuites[i].Failed]);
             NotRun.push([i, SumSuites[i].NotRun]);
@@ -508,7 +509,11 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
     function BuildPieChart(selectedSuite, $rightGraph) {
         let chartPieOptions = {
             "chartType": Contracts_1.ChartTypesConstants.Pie,
-            "xAxis": {},
+            "xAxis": {
+                canZoom: true,
+                labelsEnabled: false,
+                labelValues: ["Paused", "Blocked", "Not Applicable", "Passed", "Failed", "In Progress", "Not Run"]
+            },
             "series": [{
                     "data": [
                         selectedSuite.Paused,

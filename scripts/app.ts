@@ -362,7 +362,7 @@ async function BuildTestsSum(projectName: string, selectedPlane: number) {
     let planInfo = $("#PlanInfos");
     planInfo.empty();
     let totalTests: SumeSuite = {
-        SuiteName: "Test",
+        SuiteName: "Total",
         Blocked: 0,
         Failed: 0,
         InProgress: 0,
@@ -447,20 +447,21 @@ function BuildTestsView(SumSuites: Array<SumeSuite>) {
     let container: JQuery = $("<div />")
     container.addClass("TestSuit");
     var gridTestSuiteOptions: Grids.IGridOptions = {
-        height: (30 * SumSuites.length + 1).toString(),
+        height: (30 * (SumSuites.length + 1)).toString(),
         source: SumSuites,
         header: true,
         columns: [
             { text: "Suite Name", width: 100, index: "SuiteName" },
             { text: "Total", width: 80, index: "totalPoints" },
-            { text: "Complete", width: 80, index: "complateCount" },
-            { text: "In Progress", width: 80, index: "inProgressCount" },
-            { text: "Max Value", width: 80, index: "maxValueCount" },
-            { text: "Ready", width: 80, index: "readyCount" },
-            { text: "Not Ready", width: 80, index: "notReadyCount" },
-            { text: "None Count", width: 80, index: "noneCount" }
+            { text: "Passed", width: 80, index: "Passed" },
+            { text: "Failed", width: 80, index: "Failed" },
+            { text: "Not Run", width: 80, index: "NotRun" },
+            { text: "Not Applicable", width: 80, index: "NotApplicable" },
+            { text: "In Progress", width: 80, index: "InProgress" },
+            { text: "Paused", width: 80, index: "Paused" },
+            { text: "Blocked", width: 80, index: "Blocked" }
         ]
-    };
+    }; 
     var target = Controls.create(Grids.Grid, container, gridTestSuiteOptions);
     target.setDataSource(SumSuites);
     graphContainer.append(container);
@@ -488,7 +489,7 @@ function BuildStackedColumnChart(SumSuites: Array<SumeSuite>, $leftGraph: JQuery
     let InProgress = [];
     let labels = [];
     for (let i = 0; i < SumSuites.length; i++) {
-        labels.push(SumSuites[i].SuiteName + " total: " + SumSuites[i].totalPoints);
+        labels.push(SumSuites[i].SuiteName + " Sum: " + SumSuites[i].totalPoints);
         Passed.push([i, SumSuites[i].Passed]);
         Failed.push([i, SumSuites[i].Failed]);
         NotRun.push([i, SumSuites[i].NotRun]);
