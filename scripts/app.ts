@@ -472,12 +472,18 @@ function BuildGraphs(SumSuites: Array<SumeSuite>) {
     let $graph = $("<tr />")
     var $leftGraph = $("<td />")  
     var $rightGraph = $("<td />")
+    //
+    let $spanLeft = $("<span />")
+    let $spanRight = $("<span />")
+    $leftGraph.append($spanLeft);
+    $rightGraph.append($spanRight);
+    //
     $graph.append($leftGraph);
     $graph.append($rightGraph);
     $container.append($graph);
     let cakeGraphId = SumSuites.length - 1;
-    BuildStackedColumnChart(SumSuites, $leftGraph, $rightGraph);
-    BuildPieChart(SumSuites[cakeGraphId], $rightGraph);
+    BuildStackedColumnChart(SumSuites, $spanLeft, $spanRight);
+    BuildPieChart(SumSuites[cakeGraphId], $spanRight);
 }
 function BuildStackedColumnChart(SumSuites: Array<SumeSuite>, $leftGraph: JQuery, $rightGraph: JQuery) {
     let Paused = [];

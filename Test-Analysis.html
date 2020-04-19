@@ -9,7 +9,6 @@
 </head>
 
 <body style="height:100%">
-    <div class="Title">Test Analysis</div>
     <script type="text/javascript">
         VSS.init({
             moduleLoaderConfig: true,
@@ -19,20 +18,33 @@
                 // configureModuleLoader: true
         });
     </script>
-    <div id="Tests" class="selectTitle">
-        <div class="Select">Test Plans : </div>
-        <div id="loading" class="Select"> Loading....</div>
-        <select id="selectPlan"></select>
+    <div>
+        <tr>
+            <td id="Tests" class="selectTitle">
+                <!-- <div > -->
+                <span class="Select">Test Plans : </span>
+                <span id="loading" class="Select"> Loading....</span>
+                <select id="selectPlan"></select>
+                <!-- </div> -->
+            </td>
+            <td>
+                <span class="Title">
+                    Test Analysis
+                </span>
+            </td>
+            <td class="radio-div">
+                <!-- <div > -->
+                <input type="radio" id="male" name="view" value="Suite Table">
+                <label for="Suite Table" class="radio">Suite Table</label>
+                <input type="radio" id="female" name="view" value="Test Table">
+                <label for="Test Table" class="radio">Test Table</label>
+                <input type="radio" id="female" name="view" value="Test Graphs">
+                <label for="Test Graphs" class="radio">Test Graphs</label>
+                <!-- </div> -->
+            </td>
+        </tr>
     </div>
-    <div class="radio-div">
-        <input type="radio" id="male" name="view" value="Suite Table">
-        <label for="Suite Table" class="radio">Suite Table</label>
-        <input type="radio" id="female" name="view" value="Test Table">
-        <label for="Test Table" class="radio">Test Table</label>
-        <input type="radio" id="female" name="view" value="Test Graphs">
-        <label for="Test Graphs" class="radio">Test Graphs</label>
-        <br>
-    </div>
+
     <div id="PlanInfos"></div>
     <div id="grid-container" class="MainTableDiv"></div>
     <div id="table-container"></div>

@@ -1,10 +1,11 @@
 .radio-div {
     flex-wrap: wrap;
-    padding: 20px;
+    padding: 200px;
 }
 
 .selectTitle {
     flex-wrap: wrap;
+    padding: 10px;
 }
 
 .radio {
@@ -13,12 +14,13 @@
 }
 
 .Select {
-    font-size: x-large;
+    font-size: large;
+    padding: 10px;
 }
 
 .Title {
-    padding-left: 100;
-    margin-left: 100;
+    flex-wrap: wrap;
+    padding: 200px;
     font-size: xx-large;
     color: blue;
 }
