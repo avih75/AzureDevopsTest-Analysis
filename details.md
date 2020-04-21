@@ -13,3 +13,7 @@
 # Control Your Tests
 
 ![Layout Customization](images/D.png)
+
+# Get Your Data
+
+![Layout Customization](images/E.png)

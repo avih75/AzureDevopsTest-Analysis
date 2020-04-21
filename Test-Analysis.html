@@ -15,17 +15,14 @@
             explicitNotifyLoaded: true,
             usePlatformScripts: true,
             usePlatformStyles: true
-                // configureModuleLoader: true
         });
     </script>
     <div>
         <tr>
             <td id="Tests" class="selectTitle">
-                <!-- <div > -->
                 <span class="Select">Test Plans : </span>
                 <span id="loading" class="Select"> Loading....</span>
                 <select id="selectPlan"></select>
-                <!-- </div> -->
             </td>
             <td>
                 <span class="Title">
@@ -34,20 +31,18 @@
             </td>
             <td>
                 <span id="excellButton" class="ExcellButton"></span>
+                <span class="ExcellButton">Export to Csv File</span>
             </td>
             <td class="radio-div">
-                <!-- <div > -->
                 <input type="radio" id="male" name="view" value="Suite Table">
                 <label for="Suite Table" class="radio">Suite Table</label>
                 <input type="radio" id="female" name="view" value="Test Table">
                 <label for="Test Table" class="radio">Test Table</label>
                 <input type="radio" id="female" name="view" value="Test Graphs">
                 <label for="Test Graphs" class="radio">Test Graphs</label>
-                <!-- </div> -->
             </td>
         </tr>
     </div>
-
     <div id="PlanInfos"></div>
     <div id="grid-container" class="MainTableDiv"></div>
     <div id="table-container"></div>

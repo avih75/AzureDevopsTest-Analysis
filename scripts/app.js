@@ -13,6 +13,7 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
     const WIClient = WorkItemManagment.getClient();
     let SumSuitesforExecell;
     let palnInfoExcell;
+    const csvFileName = "Export.csv";
     class TestPointModel {
     }
     class TestCaseModel {
@@ -43,7 +44,7 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
         $('input[type=radio][name=view]').change(function () {
             if (this.value == 'Suite Table') {
                 excellButton.click(() => {
-                    CsvHelper_1.CsvDataService.exportToCsv("exl.xe", palnInfoExcell);
+                    CsvHelper_1.CsvDataService.exportToCsv(csvFileName, palnInfoExcell);
                 });
                 $("#PlanInfos").show();
                 $("#grid-container").show();
@@ -52,7 +53,7 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
             }
             else if (this.value == 'Test Table') {
                 excellButton.click(() => {
-                    CsvHelper_1.CsvDataService.exportToCsv("exl.xe", SumSuitesforExecell);
+                    CsvHelper_1.CsvDataService.exportToCsv(csvFileName, SumSuitesforExecell);
                 });
                 $("#grid-container").hide();
                 $("#PlanInfos").hide();
@@ -61,7 +62,7 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
             }
             else if (this.value == 'Test Graphs') {
                 excellButton.click(() => {
-                    CsvHelper_1.CsvDataService.exportToCsv("exl.xe", SumSuitesforExecell);
+                    CsvHelper_1.CsvDataService.exportToCsv(csvFileName, SumSuitesforExecell);
                 });
                 $("#grid-container").hide();
                 $("#PlanInfos").hide();
