@@ -1,7 +1,7 @@
 {
     "manifestVersion": 1,
     "id": "Test-Analysis",
-    "version": "1.0.109",
+    "version": "1.0.116",
     "name": "Solution to Analizes your Tests",
     "description": "A Simple Test Plan Analysis.",
     "publisher": "AviHadad",
@@ -10,7 +10,7 @@
     ],
     "targets": [{
         "id": "Microsoft.VisualStudio.Services",
-        "version": "[15.0,)"
+        "version": "[16.0,)"
     }],
     "icons": {
         "default": "images/logo.png"

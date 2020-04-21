@@ -6,11 +6,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTracking/RestClient", "VSS/Controls/Grids", "VSS/Controls", "Charts/Services", "Charts/Contracts"], function (require, exports, TestRestClient, WorkItemManagment, Grids, Controls, Services, Contracts_1) {
+define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Services", "TFS/TestManagement/RestClient", "TFS/WorkItemTracking/RestClient", "Charts/Contracts", "./CsvHelper"], function (require, exports, Grids, Controls, Services, TestRestClient, WorkItemManagment, Contracts_1, CsvHelper_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    let client;
-    let WIClient;
+    const client = TestRestClient.getClient();
+    const WIClient = WorkItemManagment.getClient();
+    let SumSuitesforExecell;
+    let palnInfoExcell;
     class TestPointModel {
     }
     class TestCaseModel {
@@ -20,8 +22,12 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
     class SumeSuite {
     }
     function Init_Page() {
-        client = TestRestClient.getClient();
-        WIClient = WorkItemManagment.getClient();
+        let excellButton = $("#excellButton");
+        let img = $("<img />");
+        img.addClass("imgExcell");
+        img.attr("src", "images/excell.jpg");
+        img.attr("alt", "export to excell file");
+        excellButton.append(img);
         let selectPlan = $("#selectPlan");
         $("#PlanInfos").hide();
         $("#grid-container").hide();
@@ -33,20 +39,30 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
         BuildSelect(projectName, selectPlan);
     }
     function BuildRadioButton() {
+        let excellButton = $("#excellButton");
         $('input[type=radio][name=view]').change(function () {
             if (this.value == 'Suite Table') {
+                excellButton.click(() => {
+                    CsvHelper_1.CsvDataService.exportToCsv("exl.xe", palnInfoExcell);
+                });
                 $("#PlanInfos").show();
                 $("#grid-container").show();
                 $("#table-container").hide();
                 $("#graph-container").hide();
             }
             else if (this.value == 'Test Table') {
+                excellButton.click(() => {
+                    CsvHelper_1.CsvDataService.exportToCsv("exl.xe", SumSuitesforExecell);
+                });
                 $("#grid-container").hide();
                 $("#PlanInfos").hide();
                 $("#table-container").show();
                 $("#graph-container").hide();
             }
             else if (this.value == 'Test Graphs') {
+                excellButton.click(() => {
+                    CsvHelper_1.CsvDataService.exportToCsv("exl.xe", SumSuitesforExecell);
+                });
                 $("#grid-container").hide();
                 $("#PlanInfos").hide();
                 $("#table-container").hide();
@@ -86,6 +102,7 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
             planInfo.empty();
             let selectedPlan = yield client.getPlanById(projectName, testPlanId);
             let palneFullInfo = yield GetTestPlanInfo(selectedPlan, testPlanId, planInfo, projectName);
+            palnInfoExcell = palneFullInfo;
             let rootTestCase = ReArangeSuiteList(palneFullInfo);
             BuildTreeView(rootTestCase);
         });
@@ -148,55 +165,57 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
             let TestPointList = new Array();
             let testPoints = yield client.getPoints(projectName, testPlanId, suiteId);
             for (const testPoint of testPoints) {
-                let TestCaseWI = yield WIClient.getWorkItem(+testPoint.testCase.id);
-                let testName = TestCaseWI.fields["System.Title"].toString();
-                let incomplite = 0;
-                let notApplicable = 0;
-                let passed = 0;
-                let total = 0;
-                let postProcess = "";
-                let stepFaild = "";
-                let outcome = testPoint.outcome;
-                if (testPoint.lastTestRun.id != "0") {
-                    let run = yield client.getTestRunById(projectName, +testPoint.lastTestRun.id);
-                    incomplite = run.incompleteTests;
-                    notApplicable = run.notApplicableTests;
-                    passed = run.passedTests;
-                    total = run.totalTests;
-                    postProcess = run.postProcessState;
-                    let testResult = yield client.getTestResultById(projectName, run.id, +testPoint.lastResult.id);
-                    if (testResult.outcome == undefined) {
-                        outcome = "In Progress";
-                    }
-                    else if (testResult.customFields != undefined) {
-                        testResult.customFields.forEach(element => {
-                        });
-                    }
-                }
-                if (outcome == "Unspecified") {
-                    outcome = "Not Run";
-                }
-                let testPointModel = {
-                    incompliteTests: incomplite,
-                    notApplicableTests: notApplicable,
-                    passedTests: passed,
-                    postProcessState: postProcess,
-                    totalTests: total,
-                    id: testPoint.id.toString(),
-                    assignedTo: testPoint.assignedTo.displayName.split(' <')[0],
-                    comment: testPoint.comment,
-                    outCome: outcome,
-                    lastTestRun: testPoint.lastTestRun.name,
-                    failureType: testPoint.failureType,
-                    testCaseId: testPoint.testCase.id,
-                    FaildStep: stepFaild,
-                    testCaseName: testName,
-                    testCaseType: testPoint.testCase.type,
-                    configuration: testPoint.configuration.name
-                };
+                let testPointModel = yield GetTestRunsResults(projectName, testPoint);
                 TestPointList.push(testPointModel);
             }
             return TestPointList;
+        });
+    }
+    function GetTestRunsResults(projectName, testPoint) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let incomplite = 0;
+            let notApplicable = 0;
+            let passed = 0;
+            let total = 0;
+            let postProcess = "";
+            let stepFaild = "";
+            let outcome = testPoint.outcome;
+            let TestCaseWI = yield WIClient.getWorkItem(+testPoint.testCase.id);
+            let testName = TestCaseWI.fields["System.Title"].toString();
+            if (testPoint.lastTestRun.id != "0") {
+                let run = yield client.getTestRunById(projectName, +testPoint.lastTestRun.id);
+                incomplite = run.incompleteTests;
+                notApplicable = run.notApplicableTests;
+                passed = run.passedTests;
+                total = run.totalTests;
+                postProcess = run.postProcessState;
+                let testResult = yield client.getTestResultById(projectName, run.id, +testPoint.lastResult.id);
+                if (testResult.outcome == undefined) {
+                    outcome = "In Progress";
+                }
+            }
+            if (outcome == "Unspecified") {
+                outcome = "Not Run";
+            }
+            let testPointModel = {
+                incompliteTests: incomplite,
+                notApplicableTests: notApplicable,
+                passedTests: passed,
+                postProcessState: postProcess,
+                totalTests: total,
+                id: testPoint.id.toString(),
+                assignedTo: testPoint.assignedTo.displayName.split(' <')[0],
+                comment: testPoint.comment,
+                outCome: outcome,
+                lastTestRun: testPoint.lastTestRun.name,
+                failureType: testPoint.failureType,
+                testCaseId: testPoint.testCase.id,
+                FaildStep: stepFaild,
+                testCaseName: testName,
+                testCaseType: testPoint.testCase.type,
+                configuration: testPoint.configuration.name
+            };
+            return testPointModel;
         });
     }
     function ReArangeSuiteList(palneFullInfo) {
@@ -344,6 +363,7 @@ define(["require", "exports", "TFS/TestManagement/RestClient", "TFS/WorkItemTrac
             }
             ;
             SumSuites.push(totalTests);
+            SumSuitesforExecell = SumSuites;
             BuildTestsView(SumSuites);
             BuildGraphs(SumSuites);
         });

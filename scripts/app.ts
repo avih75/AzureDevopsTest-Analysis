@@ -1,13 +1,16 @@
-import TestRestClient = require("TFS/TestManagement/RestClient");
-
-import WorkItemManagment = require("TFS/WorkItemTracking/RestClient");
-import { TestPlan, TestSuite, TestMessageLogDetails } from "TFS/TestManagement/Contracts";
 import Grids = require("VSS/Controls/Grids");
 import Controls = require("VSS/Controls");
 import Services = require("Charts/Services");
-import { CommonChartOptions, ChartTypesConstants, DataSeries, LegendClickEvent, ClickEvent, LabelFormatModes } from "Charts/Contracts";
-let client: TestRestClient.TestHttpClient4_1;
-let WIClient: WorkItemManagment.WorkItemTrackingHttpClient4_1
+import TestRestClient = require("TFS/TestManagement/RestClient");
+import WorkItemManagment = require("TFS/WorkItemTracking/RestClient");
+import { TestPlan, TestSuite, TestPoint } from "TFS/TestManagement/Contracts";
+import { CommonChartOptions, ChartTypesConstants, ClickEvent } from "Charts/Contracts";
+import { CsvDataService } from "./CsvHelper";
+const client: TestRestClient.TestHttpClient4_1 = TestRestClient.getClient();
+const WIClient: WorkItemManagment.WorkItemTrackingHttpClient4_1 = WorkItemManagment.getClient();
+let SumSuitesforExecell: Array<SumeSuite>;
+let palnInfoExcell: Array<TestSuiteModel>;
+const csvFileName:string="Export.csv"
 class TestPointModel {
     id: string;
     FaildStep: string;
@@ -61,8 +64,12 @@ class SumeSuite {
     Blocked: number;
 }
 function Init_Page(): void {
-    client = TestRestClient.getClient();
-    WIClient = WorkItemManagment.getClient();
+    let excellButton = $("#excellButton");
+    let img = $("<img />");
+    img.addClass("imgExcell");
+    img.attr("src", "images/excell.jpg")
+    img.attr("alt", "export to excell file")
+    excellButton.append(img);
     let selectPlan = $("#selectPlan");
     $("#PlanInfos").hide();
     $("#grid-container").hide();
@@ -74,20 +81,30 @@ function Init_Page(): void {
     BuildSelect(projectName, selectPlan);
 }
 function BuildRadioButton() {
+    let excellButton = $("#excellButton")
     $('input[type=radio][name=view]').change(function () {
         if (this.value == 'Suite Table') {
+            excellButton.click(() => {
+                CsvDataService.exportToCsv(csvFileName, palnInfoExcell)
+            });
             $("#PlanInfos").show();
             $("#grid-container").show();
             $("#table-container").hide();
             $("#graph-container").hide();
         }
         else if (this.value == 'Test Table') {
+            excellButton.click(() => {
+                CsvDataService.exportToCsv(csvFileName, SumSuitesforExecell)
+            });
             $("#grid-container").hide();
             $("#PlanInfos").hide();
             $("#table-container").show();
             $("#graph-container").hide();
         }
         else if (this.value == 'Test Graphs') {
+            excellButton.click(() => {
+                CsvDataService.exportToCsv(csvFileName, SumSuitesforExecell)
+            });
             $("#grid-container").hide();
             $("#PlanInfos").hide();
             $("#table-container").hide();
@@ -126,6 +143,7 @@ async function BuildTableTestGrid(projectName: string, testPlanId: number): Prom
     planInfo.empty();
     let selectedPlan = await client.getPlanById(projectName, testPlanId);
     let palneFullInfo: Array<TestSuiteModel> = await GetTestPlanInfo(selectedPlan, testPlanId, planInfo, projectName)
+    palnInfoExcell = palneFullInfo;
     let rootTestCase: TestSuiteModel = ReArangeSuiteList(palneFullInfo);
     BuildTreeView(rootTestCase);
 }
@@ -180,68 +198,55 @@ async function GetTestPoints(projectName: string, testPlanId: number, suiteId: n
     let TestPointList = new Array<TestPointModel>();
     let testPoints = await client.getPoints(projectName, testPlanId, suiteId);
     for (const testPoint of testPoints) {
-        let TestCaseWI = await WIClient.getWorkItem(+testPoint.testCase.id);
-        let testName = TestCaseWI.fields["System.Title"].toString();
-        let incomplite: number = 0;
-        let notApplicable: number = 0;
-        let passed: number = 0;
-        let total: number = 0;
-        let postProcess: string = "";
-        let stepFaild: string = "";
-        let outcome: string = testPoint.outcome;
-        if (testPoint.lastTestRun.id != "0") {
-            let run = await client.getTestRunById(projectName, +testPoint.lastTestRun.id);
-            incomplite = run.incompleteTests;
-            notApplicable = run.notApplicableTests;
-            passed = run.passedTests;
-            total = run.totalTests;
-            postProcess = run.postProcessState;
-            let testResult = await client.getTestResultById(projectName, run.id, +testPoint.lastResult.id)
-            if (testResult.outcome == undefined) {
-                outcome = "In Progress";
-            }
-            else if (testResult.customFields != undefined) {
-
-                testResult.customFields.forEach(element => {
-
-                });
-                // let f = testResult.subResults[0].customFields;
-                // let z = await client.getResultParameters(projectName,run.id,+testPoint.lastResult.id,1);
-                // z.forEach(element => {                    
-                // });
-                // let y = await client.getTestRunAttachments(projectName,run.id);
-                // y.forEach(element => {                    
-                // });
-                // let x = await client.getTestResultAttachments(projectName, run.id, +testPoint.lastResult.id);
-                // x.forEach(element => {
-                // });
-                //stepFaild = testResult.comment;
-            }
-        }
-        if (outcome == "Unspecified") {
-            outcome = "Not Run";
-        }
-        let testPointModel: TestPointModel = {
-            incompliteTests: incomplite,
-            notApplicableTests: notApplicable,
-            passedTests: passed,
-            postProcessState: postProcess,
-            totalTests: total,
-            id: testPoint.id.toString(),
-            assignedTo: testPoint.assignedTo.displayName.split(' <')[0],
-            comment: testPoint.comment,
-            outCome: outcome,
-            lastTestRun: testPoint.lastTestRun.name,
-            failureType: testPoint.failureType,
-            testCaseId: testPoint.testCase.id,
-            FaildStep: stepFaild,
-            testCaseName: testName,
-            testCaseType: testPoint.testCase.type,
-            configuration: testPoint.configuration.name
-        }
+        let testPointModel: TestPointModel = await GetTestRunsResults(projectName, testPoint);
         TestPointList.push(testPointModel);
     }
     return TestPointList;
+}
+async function GetTestRunsResults(projectName: string, testPoint: TestPoint) {
+    let incomplite: number = 0;
+    let notApplicable: number = 0;
+    let passed: number = 0;
+    let total: number = 0;
+    let postProcess: string = "";
+    let stepFaild: string = "";
+    let outcome: string = testPoint.outcome;
+    let TestCaseWI = await WIClient.getWorkItem(+testPoint.testCase.id);
+    let testName = TestCaseWI.fields["System.Title"].toString();
+    if (testPoint.lastTestRun.id != "0") {
+        let run = await client.getTestRunById(projectName, +testPoint.lastTestRun.id);
+        incomplite = run.incompleteTests;
+        notApplicable = run.notApplicableTests;
+        passed = run.passedTests;
+        total = run.totalTests;
+        postProcess = run.postProcessState;
+        let testResult = await client.getTestResultById(projectName, run.id, +testPoint.lastResult.id)
+        if (testResult.outcome == undefined) {
+            outcome = "In Progress";
+        }
+    }
+    if (outcome == "Unspecified") {
+        outcome = "Not Run";
+    }
+    let testPointModel: TestPointModel = {
+        incompliteTests: incomplite,
+        notApplicableTests: notApplicable,
+        passedTests: passed,
+        postProcessState: postProcess,
+        totalTests: total,
+        id: testPoint.id.toString(),
+        assignedTo: testPoint.assignedTo.displayName.split(' <')[0],
+        comment: testPoint.comment,
+        outCome: outcome,
+        lastTestRun: testPoint.lastTestRun.name,
+        failureType: testPoint.failureType,
+        testCaseId: testPoint.testCase.id,
+        FaildStep: stepFaild,
+        testCaseName: testName,
+        testCaseType: testPoint.testCase.type,
+        configuration: testPoint.configuration.name
+    }
+    return testPointModel;
 }
 function ReArangeSuiteList(palneFullInfo: Array<TestSuiteModel>) {
     let rootSuite: TestSuiteModel;
@@ -387,6 +392,7 @@ async function BuildTestsSum(projectName: string, selectedPlane: number) {
         SumSuites.push(newSuite);
     };
     SumSuites.push(totalTests);
+    SumSuitesforExecell = SumSuites;
     BuildTestsView(SumSuites);
     BuildGraphs(SumSuites);
 }
@@ -461,7 +467,7 @@ function BuildTestsView(SumSuites: Array<SumeSuite>) {
             { text: "Paused", width: 80, index: "Paused" },
             { text: "Blocked", width: 80, index: "Blocked" }
         ]
-    }; 
+    };
     var target = Controls.create(Grids.Grid, container, gridTestSuiteOptions);
     target.setDataSource(SumSuites);
     graphContainer.append(container);
@@ -470,7 +476,7 @@ function BuildGraphs(SumSuites: Array<SumeSuite>) {
     var $container = $('#graph-container');
     $container.empty();
     let $graph = $("<tr />")
-    var $leftGraph = $("<td />")  
+    var $leftGraph = $("<td />")
     var $rightGraph = $("<td />")
     //
     let $spanLeft = $("<span />")
@@ -545,7 +551,6 @@ function BuildStackedColumnChart(SumSuites: Array<SumeSuite>, $leftGraph: JQuery
             $rightGraph.empty();
             BuildPieChart(SumSuites[clickeEvent.seriesDataIndex], $rightGraph)
         },
-
     }
     Services.ChartsService.getService().then((chartService) => {
         chartService.createChart($leftGraph, chartStackedColumnOptions);
@@ -575,7 +580,6 @@ function BuildPieChart(selectedSuite: SumeSuite, $rightGraph: JQuery) {
             showLabels: true,
             size: "200"
         },
-
     }
     Services.ChartsService.getService().then((chartService) => {
         chartService.createChart($rightGraph, chartPieOptions);
