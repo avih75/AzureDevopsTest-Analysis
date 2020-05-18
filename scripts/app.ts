@@ -3,14 +3,14 @@ import Controls = require("VSS/Controls");
 import Services = require("Charts/Services");
 import TestRestClient = require("TFS/TestManagement/RestClient");
 import WorkItemManagment = require("TFS/WorkItemTracking/RestClient");
-import { TestPlan, TestSuite, TestPoint } from "TFS/TestManagement/Contracts";
+import { TestPlan, TestSuite, TestPoint, ResultDetails } from "TFS/TestManagement/Contracts";
 import { CommonChartOptions, ChartTypesConstants, ClickEvent } from "Charts/Contracts";
 import { CsvDataService } from "./CsvHelper";
 const client: TestRestClient.TestHttpClient4_1 = TestRestClient.getClient();
 const WIClient: WorkItemManagment.WorkItemTrackingHttpClient4_1 = WorkItemManagment.getClient();
 let SumSuitesforExecell: Array<SumeSuite>;
 let palnInfoExcell: Array<TestSuiteModel>;
-const csvFileName:string="Export.csv"
+const csvFileName: string = "Export.csv"
 class TestPointModel {
     id: string;
     FaildStep: string;
@@ -148,6 +148,7 @@ async function BuildTableTestGrid(projectName: string, testPlanId: number): Prom
     BuildTreeView(rootTestCase);
 }
 async function GetTestPlanInfo(selectedPlan: TestPlan, testPlanId: number, planInfo: JQuery, projectName: string) {
+
     let table = $("<table />");
     let tr = $("<tr />");
     tr.append(TextView("Project:", 5));
@@ -215,12 +216,21 @@ async function GetTestRunsResults(projectName: string, testPoint: TestPoint) {
     let testName = TestCaseWI.fields["System.Title"].toString();
     if (testPoint.lastTestRun.id != "0") {
         let run = await client.getTestRunById(projectName, +testPoint.lastTestRun.id);
+        let testResult = await client.getTestResultById(projectName, run.id, +testPoint.lastResult.id, ResultDetails.Iterations)
+        if (testResult.iterationDetails.length > 0) {
+            let x = testResult.iterationDetails.pop().id;
+            let y = testResult.id;
+            let actionResult = await client.getActionResults(projectName, run.id, y, x)
+            actionResult.forEach(action => {
+                if (action.outcome == "Failed")
+                    stepFaild += action.errorMessage;
+            });
+        }
         incomplite = run.incompleteTests;
         notApplicable = run.notApplicableTests;
         passed = run.passedTests;
         total = run.totalTests;
         postProcess = run.postProcessState;
-        let testResult = await client.getTestResultById(projectName, run.id, +testPoint.lastResult.id)
         if (testResult.outcome == undefined) {
             outcome = "In Progress";
         }
@@ -475,23 +485,30 @@ function BuildTestsView(SumSuites: Array<SumeSuite>) {
 function BuildGraphs(SumSuites: Array<SumeSuite>) {
     var $container = $('#graph-container');
     $container.empty();
-    let $graph = $("<tr />")
+    let $graphLine = $("<tr />")
+    //let $graphLine2 = $("<tr />")
     var $leftGraph = $("<td />")
+    var $midelGraph = $("<td />")
     var $rightGraph = $("<td />")
     //
     let $spanLeft = $("<span />")
+    let $spanMidel = $("<span />")
     let $spanRight = $("<span />")
     $leftGraph.append($spanLeft);
+    //$midelGraph.append($spanMidel);
+    $midelGraph.append($spanMidel);
     $rightGraph.append($spanRight);
     //
-    $graph.append($leftGraph);
-    $graph.append($rightGraph);
-    $container.append($graph);
+    $graphLine.append($leftGraph);
+    $graphLine.append($midelGraph);
+    $graphLine.append($rightGraph);
+    $container.append($graphLine);
     let cakeGraphId = SumSuites.length - 1;
-    BuildStackedColumnChart(SumSuites, $spanLeft, $spanRight);
-    BuildPieChart(SumSuites[cakeGraphId], $spanRight);
+    BuildStackedColumnChart(SumSuites, $spanLeft, $spanMidel);
+    BuildPieChart(SumSuites[0], $spanMidel);
+    BuildPieChart(SumSuites[cakeGraphId], $spanRight)
 }
-function BuildStackedColumnChart(SumSuites: Array<SumeSuite>, $leftGraph: JQuery, $rightGraph: JQuery) {
+function BuildStackedColumnChart(SumSuites: Array<SumeSuite>, $graphSpan: JQuery, $dinamicPieSpan: JQuery) {
     let Paused = [];
     let Blocked = [];
     let Passed = [];
@@ -500,7 +517,7 @@ function BuildStackedColumnChart(SumSuites: Array<SumeSuite>, $leftGraph: JQuery
     let NotApplicable = [];
     let InProgress = [];
     let labels = [];
-    for (let i = 0; i < SumSuites.length; i++) {
+    for (let i = 0; i < SumSuites.length - 1; i++) {
         labels.push(SumSuites[i].SuiteName + " Sum: " + SumSuites[i].totalPoints);
         Passed.push([i, SumSuites[i].Passed]);
         Failed.push([i, SumSuites[i].Failed]);
@@ -548,16 +565,18 @@ function BuildStackedColumnChart(SumSuites: Array<SumeSuite>, $leftGraph: JQuery
         },
         "series": series,
         "click": (clickeEvent: ClickEvent) => {
-            $rightGraph.empty();
-            BuildPieChart(SumSuites[clickeEvent.seriesDataIndex], $rightGraph)
+            $dinamicPieSpan.empty();
+            BuildPieChart(SumSuites[clickeEvent.seriesDataIndex], $dinamicPieSpan)
         },
     }
     Services.ChartsService.getService().then((chartService) => {
-        chartService.createChart($leftGraph, chartStackedColumnOptions);
+        chartService.createChart($graphSpan, chartStackedColumnOptions);
     });
 }
 function BuildPieChart(selectedSuite: SumeSuite, $rightGraph: JQuery) {
     let chartPieOptions: CommonChartOptions = {
+        suppressAnimation: true,
+        hostOptions: { height: 300, width: 300 },
         "chartType": ChartTypesConstants.Pie,
         "xAxis": {
             canZoom: true,
@@ -588,4 +607,9 @@ function BuildPieChart(selectedSuite: SumeSuite, $rightGraph: JQuery) {
 var id = VSS.getContribution().id;
 VSS.register(id, Init_Page);
 VSS.resize();
-Init_Page(); 
+Init_Page();
+
+
+// GET http://elitebooki7:9090/tfs/DefaultCollection/Avi%20Test/_apis/test/Runs/12/results?detailsToInclude=WorkItems,Iterations&$top=100&api-version=5.1
+// GET http://elitebooki7:9090/tfs/DefaultCollection/Avi%20Test/_apis/test/Runs/5/Results/1/Iterations/1/ActionResults
+// http://elitebooki7:9090/tfs/DefaultCollection/A/_apis/test/Runs/33/Results/100000/Iterations/1/ActionResults

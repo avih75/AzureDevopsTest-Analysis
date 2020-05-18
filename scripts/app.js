@@ -6,7 +6,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Services", "TFS/TestManagement/RestClient", "TFS/WorkItemTracking/RestClient", "Charts/Contracts", "./CsvHelper"], function (require, exports, Grids, Controls, Services, TestRestClient, WorkItemManagment, Contracts_1, CsvHelper_1) {
+define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Services", "TFS/TestManagement/RestClient", "TFS/WorkItemTracking/RestClient", "TFS/TestManagement/Contracts", "Charts/Contracts", "./CsvHelper"], function (require, exports, Grids, Controls, Services, TestRestClient, WorkItemManagment, Contracts_1, Contracts_2, CsvHelper_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     const client = TestRestClient.getClient();
@@ -185,12 +185,21 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
             let testName = TestCaseWI.fields["System.Title"].toString();
             if (testPoint.lastTestRun.id != "0") {
                 let run = yield client.getTestRunById(projectName, +testPoint.lastTestRun.id);
+                let testResult = yield client.getTestResultById(projectName, run.id, +testPoint.lastResult.id, Contracts_1.ResultDetails.Iterations);
+                if (testResult.iterationDetails.length > 0) {
+                    let x = testResult.iterationDetails.pop().id;
+                    let y = testResult.id;
+                    let actionResult = yield client.getActionResults(projectName, run.id, y, x);
+                    actionResult.forEach(action => {
+                        if (action.outcome == "Failed")
+                            stepFaild += action.errorMessage;
+                    });
+                }
                 incomplite = run.incompleteTests;
                 notApplicable = run.notApplicableTests;
                 passed = run.passedTests;
                 total = run.totalTests;
                 postProcess = run.postProcessState;
-                let testResult = yield client.getTestResultById(projectName, run.id, +testPoint.lastResult.id);
                 if (testResult.outcome == undefined) {
                     outcome = "In Progress";
                 }
@@ -451,21 +460,26 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
     function BuildGraphs(SumSuites) {
         var $container = $('#graph-container');
         $container.empty();
-        let $graph = $("<tr />");
+        let $graphLine = $("<tr />");
         var $leftGraph = $("<td />");
+        var $midelGraph = $("<td />");
         var $rightGraph = $("<td />");
         let $spanLeft = $("<span />");
+        let $spanMidel = $("<span />");
         let $spanRight = $("<span />");
         $leftGraph.append($spanLeft);
+        $midelGraph.append($spanMidel);
         $rightGraph.append($spanRight);
-        $graph.append($leftGraph);
-        $graph.append($rightGraph);
-        $container.append($graph);
+        $graphLine.append($leftGraph);
+        $graphLine.append($midelGraph);
+        $graphLine.append($rightGraph);
+        $container.append($graphLine);
         let cakeGraphId = SumSuites.length - 1;
-        BuildStackedColumnChart(SumSuites, $spanLeft, $spanRight);
+        BuildStackedColumnChart(SumSuites, $spanLeft, $spanMidel);
+        BuildPieChart(SumSuites[0], $spanMidel);
         BuildPieChart(SumSuites[cakeGraphId], $spanRight);
     }
-    function BuildStackedColumnChart(SumSuites, $leftGraph, $rightGraph) {
+    function BuildStackedColumnChart(SumSuites, $graphSpan, $dinamicPieSpan) {
         let Paused = [];
         let Blocked = [];
         let Passed = [];
@@ -474,7 +488,7 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
         let NotApplicable = [];
         let InProgress = [];
         let labels = [];
-        for (let i = 0; i < SumSuites.length; i++) {
+        for (let i = 0; i < SumSuites.length - 1; i++) {
             labels.push(SumSuites[i].SuiteName + " Sum: " + SumSuites[i].totalPoints);
             Passed.push([i, SumSuites[i].Passed]);
             Failed.push([i, SumSuites[i].Failed]);
@@ -515,7 +529,7 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
             data: NotRun
         });
         let chartStackedColumnOptions = {
-            "chartType": Contracts_1.ChartTypesConstants.StackedColumn,
+            "chartType": Contracts_2.ChartTypesConstants.StackedColumn,
             "xAxis": {
                 canZoom: true,
                 suppressLabelTruncation: true,
@@ -523,17 +537,19 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
             },
             "series": series,
             "click": (clickeEvent) => {
-                $rightGraph.empty();
-                BuildPieChart(SumSuites[clickeEvent.seriesDataIndex], $rightGraph);
+                $dinamicPieSpan.empty();
+                BuildPieChart(SumSuites[clickeEvent.seriesDataIndex], $dinamicPieSpan);
             },
         };
         Services.ChartsService.getService().then((chartService) => {
-            chartService.createChart($leftGraph, chartStackedColumnOptions);
+            chartService.createChart($graphSpan, chartStackedColumnOptions);
         });
     }
     function BuildPieChart(selectedSuite, $rightGraph) {
         let chartPieOptions = {
-            "chartType": Contracts_1.ChartTypesConstants.Pie,
+            suppressAnimation: true,
+            hostOptions: { height: 300, width: 300 },
+            "chartType": Contracts_2.ChartTypesConstants.Pie,
             "xAxis": {
                 canZoom: true,
                 labelsEnabled: false,
