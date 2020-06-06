@@ -1,8 +1,12 @@
-# Make Azure Test Plan more Frendly
+# Summery
 
 Add to your Azure DevOps new ways to explore your test work
 
-![Layout Customization](images/A.png)
+# Analayz Your Tests
+
+Analyze the information with spectacular and interactive graphs
+
+![Layout Customization](images/D.png)
 
 # Get Test Plan Detaily Info
 
@@ -15,12 +19,6 @@ You can see a fully details of your tests, easly explore them
 Get the most Precise information םכ your test suit
 
 ![Layout Customization](images/C.png)
-
-# Control Your Tests
-
-Analyze the information with spectacular and interactive graphs
-
-![Layout Customization](images/D.png)
 
 # Export Your Data
 

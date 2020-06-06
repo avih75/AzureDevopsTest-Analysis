@@ -4,9 +4,9 @@ import Services = require("Charts/Services");
 import TestRestClient = require("TFS/TestManagement/RestClient");
 import WorkItemManagment = require("TFS/WorkItemTracking/RestClient");
 import { TestPlan, TestSuite, TestPoint, ResultDetails } from "TFS/TestManagement/Contracts";
-import { CommonChartOptions, ChartTypesConstants, ClickEvent } from "Charts/Contracts";
+import { CommonChartOptions, ChartTypesConstants, ClickEvent, LegendOptions, TooltipOptions } from "Charts/Contracts";
 import { CsvDataService } from "./CsvHelper";
-const client: TestRestClient.TestHttpClient4_1 = TestRestClient.getClient();
+let client = TestRestClient.getClient();
 const WIClient: WorkItemManagment.WorkItemTrackingHttpClient4_1 = WorkItemManagment.getClient();
 let SumSuitesforExecell: Array<SumeSuite>;
 let palnInfoExcell: Array<TestSuiteModel>;
@@ -51,8 +51,7 @@ class TestSuiteModel {
     suiteType: string;
     testCaseCount: number;
     allTestCases: number;
-}
-class SumeSuite {
+} class SumeSuite {
     SuiteName: string;
     Passed: number;
     Failed: number;
@@ -64,6 +63,13 @@ class SumeSuite {
     Blocked: number;
 }
 function Init_Page(): void {
+    buildView();
+    // start with graph view
+    $("#Graphs").prop("checked", true);
+    $("#graph-container").show();
+    //
+}
+function buildView() {
     let excellButton = $("#excellButton");
     let img = $("<img />");
     img.addClass("imgExcell");
@@ -142,13 +148,13 @@ async function BuildTableTestGrid(projectName: string, testPlanId: number): Prom
     container.empty();
     planInfo.empty();
     let selectedPlan = await client.getPlanById(projectName, testPlanId);
-    let palneFullInfo: Array<TestSuiteModel> = await GetTestPlanInfo(selectedPlan, testPlanId, planInfo, projectName)
-    palnInfoExcell = palneFullInfo;
+    ShowPlaneInfos(selectedPlan, testPlanId, planInfo, projectName);
+    let palneFullInfo: Array<TestSuiteModel> = await GetTestPlanSuites(selectedPlan, testPlanId, planInfo, projectName);
+    //this.palnInfoExcell = palneFullInfo;
     let rootTestCase: TestSuiteModel = ReArangeSuiteList(palneFullInfo);
     BuildTreeView(rootTestCase);
 }
-async function GetTestPlanInfo(selectedPlan: TestPlan, testPlanId: number, planInfo: JQuery, projectName: string) {
-
+function ShowPlaneInfos(selectedPlan: TestPlan, testPlanId: number, planInfo: JQuery, projectName: string) {
     let table = $("<table />");
     let tr = $("<tr />");
     tr.append(TextView("Project:", 5));
@@ -165,6 +171,8 @@ async function GetTestPlanInfo(selectedPlan: TestPlan, testPlanId: number, planI
     tr.append(TextView(selectedPlan.state, 6));
     table.append(tr);
     planInfo.append(table);
+}
+async function GetTestPlanSuites(selectedPlan: TestPlan, testPlanId: number, planInfo: JQuery, projectName: string) {
     let suites = await client.getTestSuitesForPlan(projectName, testPlanId);
     if (suites.length > 0) {
         return await GetTestSuites(suites, projectName, testPlanId);
@@ -218,13 +226,18 @@ async function GetTestRunsResults(projectName: string, testPoint: TestPoint) {
         let run = await client.getTestRunById(projectName, +testPoint.lastTestRun.id);
         let testResult = await client.getTestResultById(projectName, run.id, +testPoint.lastResult.id, ResultDetails.Iterations)
         if (testResult.iterationDetails.length > 0) {
-            let x = testResult.iterationDetails.pop().id;
-            let y = testResult.id;
-            let actionResult = await client.getActionResults(projectName, run.id, y, x)
-            actionResult.forEach(action => {
-                if (action.outcome == "Failed")
+            // try get the action that failed the run
+            try {
+                let actionResults = await client.getActionResults(projectName, run.id, testResult.id, testResult.iterationDetails.pop().id)
+                actionResults.forEach(action => {
+                    if (action.outcome == "Failed")
+                        action.actionPath
                     stepFaild += action.errorMessage;
-            });
+                });
+            }
+            catch{
+
+            }
         }
         incomplite = run.incompleteTests;
         notApplicable = run.notApplicableTests;
@@ -401,6 +414,7 @@ async function BuildTestsSum(projectName: string, selectedPlane: number) {
         totalTests.totalPoints += newSuite.totalPoints;
         SumSuites.push(newSuite);
     };
+    SumSuites.sort((a: SumeSuite, b: SumeSuite) => b.totalPoints - a.totalPoints);
     SumSuites.push(totalTests);
     SumSuitesforExecell = SumSuites;
     BuildTestsView(SumSuites);
@@ -485,18 +499,22 @@ function BuildTestsView(SumSuites: Array<SumeSuite>) {
 function BuildGraphs(SumSuites: Array<SumeSuite>) {
     var $container = $('#graph-container');
     $container.empty();
+    $container.css("width", "100%")
     let $graphLine = $("<tr />")
+    $graphLine.css("width", "100%")
     //let $graphLine2 = $("<tr />")
     var $leftGraph = $("<td />")
+    $leftGraph.css("width", "60%")
     var $midelGraph = $("<td />")
     var $rightGraph = $("<td />")
     //
     let $spanLeft = $("<span />")
-    let $spanMidel = $("<span />")
+    $spanLeft.css("width", "100%")
     let $spanRight = $("<span />")
+    let $spanMidl = $("<span />")
     $leftGraph.append($spanLeft);
     //$midelGraph.append($spanMidel);
-    $midelGraph.append($spanMidel);
+    $midelGraph.append($spanMidl);
     $rightGraph.append($spanRight);
     //
     $graphLine.append($leftGraph);
@@ -504,9 +522,9 @@ function BuildGraphs(SumSuites: Array<SumeSuite>) {
     $graphLine.append($rightGraph);
     $container.append($graphLine);
     let cakeGraphId = SumSuites.length - 1;
-    BuildStackedColumnChart(SumSuites, $spanLeft, $spanMidel);
-    BuildPieChart(SumSuites[0], $spanMidel);
-    BuildPieChart(SumSuites[cakeGraphId], $spanRight)
+    BuildStackedColumnChart(SumSuites, $spanLeft, $spanRight);
+    BuildPieChart(SumSuites[0], $spanRight);
+    BuildPieChart(SumSuites[cakeGraphId], $spanMidl)
 }
 function BuildStackedColumnChart(SumSuites: Array<SumeSuite>, $graphSpan: JQuery, $dinamicPieSpan: JQuery) {
     let Paused = [];
@@ -518,7 +536,7 @@ function BuildStackedColumnChart(SumSuites: Array<SumeSuite>, $graphSpan: JQuery
     let InProgress = [];
     let labels = [];
     for (let i = 0; i < SumSuites.length - 1; i++) {
-        labels.push(SumSuites[i].SuiteName + " Sum: " + SumSuites[i].totalPoints);
+        labels.push(SumSuites[i].SuiteName);//+ " Sum: " + SumSuites[i].totalPoints
         Passed.push([i, SumSuites[i].Passed]);
         Failed.push([i, SumSuites[i].Failed]);
         NotRun.push([i, SumSuites[i].NotRun]);
@@ -556,13 +574,20 @@ function BuildStackedColumnChart(SumSuites: Array<SumeSuite>, $graphSpan: JQuery
         name: "Not Run",
         data: NotRun
     });
-    let chartStackedColumnOptions: CommonChartOptions = {
+    let toolTipOption: TooltipOptions = {
+        onlyShowFocusedSeries: true,
+    }
+    let chartStackedColumnOptions: CommonChartOptions = { 
+        "tooltip": toolTipOption,
         "chartType": ChartTypesConstants.StackedColumn,
         "xAxis": {
             canZoom: true,
             suppressLabelTruncation: true,
             labelValues: labels
         },
+        "yAxis":{
+           renderToEdges:true           
+        },        
         "series": series,
         "click": (clickeEvent: ClickEvent) => {
             $dinamicPieSpan.empty();
@@ -574,7 +599,11 @@ function BuildStackedColumnChart(SumSuites: Array<SumeSuite>, $graphSpan: JQuery
     });
 }
 function BuildPieChart(selectedSuite: SumeSuite, $rightGraph: JQuery) {
+    let legend: LegendOptions = {
+        enabled: false
+    }
     let chartPieOptions: CommonChartOptions = {
+        "legend": legend,
         suppressAnimation: true,
         hostOptions: { height: 300, width: 300 },
         "chartType": ChartTypesConstants.Pie,

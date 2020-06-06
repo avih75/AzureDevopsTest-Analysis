@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Services", "TFS/TestManagement/RestClient", "TFS/WorkItemTracking/RestClient", "TFS/TestManagement/Contracts", "Charts/Contracts", "./CsvHelper"], function (require, exports, Grids, Controls, Services, TestRestClient, WorkItemManagment, Contracts_1, Contracts_2, CsvHelper_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    const client = TestRestClient.getClient();
+    let client = TestRestClient.getClient();
     const WIClient = WorkItemManagment.getClient();
     let SumSuitesforExecell;
     let palnInfoExcell;
@@ -23,6 +23,11 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
     class SumeSuite {
     }
     function Init_Page() {
+        buildView();
+        $("#Graphs").prop("checked", true);
+        $("#graph-container").show();
+    }
+    function buildView() {
         let excellButton = $("#excellButton");
         let img = $("<img />");
         img.addClass("imgExcell");
@@ -102,30 +107,32 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
             container.empty();
             planInfo.empty();
             let selectedPlan = yield client.getPlanById(projectName, testPlanId);
-            let palneFullInfo = yield GetTestPlanInfo(selectedPlan, testPlanId, planInfo, projectName);
-            palnInfoExcell = palneFullInfo;
+            ShowPlaneInfos(selectedPlan, testPlanId, planInfo, projectName);
+            let palneFullInfo = yield GetTestPlanSuites(selectedPlan, testPlanId, planInfo, projectName);
             let rootTestCase = ReArangeSuiteList(palneFullInfo);
             BuildTreeView(rootTestCase);
         });
     }
-    function GetTestPlanInfo(selectedPlan, testPlanId, planInfo, projectName) {
+    function ShowPlaneInfos(selectedPlan, testPlanId, planInfo, projectName) {
+        let table = $("<table />");
+        let tr = $("<tr />");
+        tr.append(TextView("Project:", 5));
+        tr.append(TextView(projectName, 6));
+        tr.append(TextView("Plan:", 5));
+        tr.append(TextView(testPlanId, 6));
+        tr.append(TextView("Root Suite:", 5));
+        tr.append(TextView(selectedPlan.rootSuite.name, 6));
+        tr.append(TextView("Iteration:", 5));
+        tr.append(TextView(selectedPlan.iteration, 6));
+        tr.append(TextView("Area:", 5));
+        tr.append(TextView(selectedPlan.area, 6));
+        tr.append(TextView("State:", 5));
+        tr.append(TextView(selectedPlan.state, 6));
+        table.append(tr);
+        planInfo.append(table);
+    }
+    function GetTestPlanSuites(selectedPlan, testPlanId, planInfo, projectName) {
         return __awaiter(this, void 0, void 0, function* () {
-            let table = $("<table />");
-            let tr = $("<tr />");
-            tr.append(TextView("Project:", 5));
-            tr.append(TextView(projectName, 6));
-            tr.append(TextView("Plan:", 5));
-            tr.append(TextView(testPlanId, 6));
-            tr.append(TextView("Root Suite:", 5));
-            tr.append(TextView(selectedPlan.rootSuite.name, 6));
-            tr.append(TextView("Iteration:", 5));
-            tr.append(TextView(selectedPlan.iteration, 6));
-            tr.append(TextView("Area:", 5));
-            tr.append(TextView(selectedPlan.area, 6));
-            tr.append(TextView("State:", 5));
-            tr.append(TextView(selectedPlan.state, 6));
-            table.append(tr);
-            planInfo.append(table);
             let suites = yield client.getTestSuitesForPlan(projectName, testPlanId);
             if (suites.length > 0) {
                 return yield GetTestSuites(suites, projectName, testPlanId);
@@ -187,13 +194,16 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
                 let run = yield client.getTestRunById(projectName, +testPoint.lastTestRun.id);
                 let testResult = yield client.getTestResultById(projectName, run.id, +testPoint.lastResult.id, Contracts_1.ResultDetails.Iterations);
                 if (testResult.iterationDetails.length > 0) {
-                    let x = testResult.iterationDetails.pop().id;
-                    let y = testResult.id;
-                    let actionResult = yield client.getActionResults(projectName, run.id, y, x);
-                    actionResult.forEach(action => {
-                        if (action.outcome == "Failed")
+                    try {
+                        let actionResults = yield client.getActionResults(projectName, run.id, testResult.id, testResult.iterationDetails.pop().id);
+                        actionResults.forEach(action => {
+                            if (action.outcome == "Failed")
+                                action.actionPath;
                             stepFaild += action.errorMessage;
-                    });
+                        });
+                    }
+                    catch (_a) {
+                    }
                 }
                 incomplite = run.incompleteTests;
                 notApplicable = run.notApplicableTests;
@@ -372,6 +382,7 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
                 SumSuites.push(newSuite);
             }
             ;
+            SumSuites.sort((a, b) => b.totalPoints - a.totalPoints);
             SumSuites.push(totalTests);
             SumSuitesforExecell = SumSuites;
             BuildTestsView(SumSuites);
@@ -460,24 +471,28 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
     function BuildGraphs(SumSuites) {
         var $container = $('#graph-container');
         $container.empty();
+        $container.css("width", "100%");
         let $graphLine = $("<tr />");
+        $graphLine.css("width", "100%");
         var $leftGraph = $("<td />");
+        $leftGraph.css("width", "60%");
         var $midelGraph = $("<td />");
         var $rightGraph = $("<td />");
         let $spanLeft = $("<span />");
-        let $spanMidel = $("<span />");
+        $spanLeft.css("width", "100%");
         let $spanRight = $("<span />");
+        let $spanMidl = $("<span />");
         $leftGraph.append($spanLeft);
-        $midelGraph.append($spanMidel);
+        $midelGraph.append($spanMidl);
         $rightGraph.append($spanRight);
         $graphLine.append($leftGraph);
         $graphLine.append($midelGraph);
         $graphLine.append($rightGraph);
         $container.append($graphLine);
         let cakeGraphId = SumSuites.length - 1;
-        BuildStackedColumnChart(SumSuites, $spanLeft, $spanMidel);
-        BuildPieChart(SumSuites[0], $spanMidel);
-        BuildPieChart(SumSuites[cakeGraphId], $spanRight);
+        BuildStackedColumnChart(SumSuites, $spanLeft, $spanRight);
+        BuildPieChart(SumSuites[0], $spanRight);
+        BuildPieChart(SumSuites[cakeGraphId], $spanMidl);
     }
     function BuildStackedColumnChart(SumSuites, $graphSpan, $dinamicPieSpan) {
         let Paused = [];
@@ -489,7 +504,7 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
         let InProgress = [];
         let labels = [];
         for (let i = 0; i < SumSuites.length - 1; i++) {
-            labels.push(SumSuites[i].SuiteName + " Sum: " + SumSuites[i].totalPoints);
+            labels.push(SumSuites[i].SuiteName);
             Passed.push([i, SumSuites[i].Passed]);
             Failed.push([i, SumSuites[i].Failed]);
             NotRun.push([i, SumSuites[i].NotRun]);
@@ -528,12 +543,19 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
             name: "Not Run",
             data: NotRun
         });
+        let toolTipOption = {
+            onlyShowFocusedSeries: true,
+        };
         let chartStackedColumnOptions = {
+            "tooltip": toolTipOption,
             "chartType": Contracts_2.ChartTypesConstants.StackedColumn,
             "xAxis": {
                 canZoom: true,
                 suppressLabelTruncation: true,
                 labelValues: labels
+            },
+            "yAxis": {
+                renderToEdges: true
             },
             "series": series,
             "click": (clickeEvent) => {
@@ -546,7 +568,11 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
         });
     }
     function BuildPieChart(selectedSuite, $rightGraph) {
+        let legend = {
+            enabled: false
+        };
         let chartPieOptions = {
+            "legend": legend,
             suppressAnimation: true,
             hostOptions: { height: 300, width: 300 },
             "chartType": Contracts_2.ChartTypesConstants.Pie,

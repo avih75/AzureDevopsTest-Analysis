@@ -1,7 +1,7 @@
 {
     "manifestVersion": 1,
     "id": "Test-Analysis",
-    "version": "1.0.143",
+    "version": "1.0.176",
     "name": "Solution to Analizes your Tests",
     "description": "A Simple Test Plan Analysis.",
     "publisher": "AviHadad",
@@ -26,7 +26,36 @@
         "properties": {
             "name": "Analysis",
             "order": 99,
-            "uri": "Test-Analysis.html"
+            "uri": "Test-Analysis.html",
+            "authenticationSchemes": [{
+                    "type": "ms.vss-endpoint.endpoint-auth-scheme-token"
+                },
+                {
+                    "type": "ms.vss-endpoint.endpoint-auth-scheme-basic",
+                    "inputDescriptors": [{
+                            "id": "username",
+                            "name": "Username",
+                            "description": "Username",
+                            "inputMode": "textbox",
+                            "validation": {
+                                "isRequired": false,
+                                "dataType": "string"
+                            }
+                        },
+                        {
+                            "id": "password",
+                            "name": "Password",
+                            "description": "Password",
+                            "inputMode": "passwordbox",
+                            "isConfidential": true,
+                            "validation": {
+                                "isRequired": false,
+                                "dataType": "string"
+                            }
+                        }
+                    ]
+                }
+            ]
         }
     }],
     "scopes": [

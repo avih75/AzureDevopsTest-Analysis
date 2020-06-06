@@ -1,6 +1,6 @@
 .radio-div {
     flex-wrap: wrap;
-    padding: 200px;
+    padding: 180px;
 }
 
 .selectTitle {
@@ -20,7 +20,7 @@
 
 .Title {
     flex-wrap: wrap;
-    padding: 200px;
+    padding: 180px;
     font-size: xx-large;
     color: blue;
 }
