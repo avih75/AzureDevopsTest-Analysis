@@ -6,11 +6,13 @@ import WorkItemManagment = require("TFS/WorkItemTracking/RestClient");
 import { TestPlan, TestSuite, TestPoint, ResultDetails } from "TFS/TestManagement/Contracts";
 import { CommonChartOptions, ChartTypesConstants, ClickEvent, LegendOptions, TooltipOptions } from "Charts/Contracts";
 import { CsvDataService } from "./CsvHelper";
-let client = TestRestClient.getClient();
+import { GetLastTimeValue, SetValue } from "./storageHelper";
+let testClient = TestRestClient.getClient();
 const WIClient: WorkItemManagment.WorkItemTrackingHttpClient4_1 = WorkItemManagment.getClient();
 let SumSuitesforExecell: Array<SumeSuite>;
 let palnInfoExcell: Array<TestSuiteModel>;
-const csvFileName: string = "Export.csv"
+const csvFileName: string = "Export.csv";
+let selectedId: number = 0;
 class TestPointModel {
     id: string;
     FaildStep: string;
@@ -62,20 +64,27 @@ class TestSuiteModel {
     Paused: number;
     Blocked: number;
 }
-function Init_Page(): void {
+async function Init_Page(): Promise<void> {
+    let webContext = VSS.getWebContext();
+    try {
+        selectedId = await GetLastTimeValue(webContext.user.name + "_" + webContext.project.name);
+    }
+    catch{
+
+    }
+    VSS.resize();
+    VSS.applyTheme("Dark");
     buildView();
     // start with graph view
     $("#Graphs").prop("checked", true);
     $("#graph-container").show();
+    let $excellButton = $("#excellButton");
+    $excellButton.click(() => {
+        CsvDataService.exportToCsv(csvFileName, SumSuitesforExecell);
+    });
     //
 }
 function buildView() {
-    let excellButton = $("#excellButton");
-    let img = $("<img />");
-    img.addClass("imgExcell");
-    img.attr("src", "images/excell.jpg")
-    img.attr("alt", "export to excell file")
-    excellButton.append(img);
     let selectPlan = $("#selectPlan");
     $("#PlanInfos").hide();
     $("#grid-container").hide();
@@ -87,11 +96,11 @@ function buildView() {
     BuildSelect(projectName, selectPlan);
 }
 function BuildRadioButton() {
-    let excellButton = $("#excellButton")
+    let $excellButton = $("#excellButton");
     $('input[type=radio][name=view]').change(function () {
         if (this.value == 'Suite Table') {
-            excellButton.click(() => {
-                CsvDataService.exportToCsv(csvFileName, palnInfoExcell)
+            $excellButton.click(() => {
+                CsvDataService.exportToCsv(csvFileName, palnInfoExcell);
             });
             $("#PlanInfos").show();
             $("#grid-container").show();
@@ -99,8 +108,8 @@ function BuildRadioButton() {
             $("#graph-container").hide();
         }
         else if (this.value == 'Test Table') {
-            excellButton.click(() => {
-                CsvDataService.exportToCsv(csvFileName, SumSuitesforExecell)
+            $excellButton.click(() => {
+                CsvDataService.exportToCsv(csvFileName, SumSuitesforExecell);
             });
             $("#grid-container").hide();
             $("#PlanInfos").hide();
@@ -108,51 +117,72 @@ function BuildRadioButton() {
             $("#graph-container").hide();
         }
         else if (this.value == 'Test Graphs') {
-            excellButton.click(() => {
+            $excellButton.click(() => {
                 CsvDataService.exportToCsv(csvFileName, SumSuitesforExecell)
             });
             $("#grid-container").hide();
             $("#PlanInfos").hide();
             $("#table-container").hide();
             $("#graph-container").show();
-        }
+        } 
     });
 }
 function BuildSelect(projectName: string, selectPlan: JQuery) {
+    let webContext = VSS.getWebContext();
     selectPlan.attr("disabled", "true");
     selectPlan.change(function () {
         selectPlan.attr("disabled", "true");
         let selectedPlan = $(this).children("option:selected").val();
-        BuildTableTestGrid(projectName, selectedPlan);
+        SetValue(webContext.user.name + "_" + webContext.project.name, selectedPlan);
+        BuildTableTestGrid(projectName, selectedPlan, selectPlan);
         BuildTestsSum(projectName, selectedPlan);
         selectPlan.removeAttr("disabled");
     });
-    client._setInitializationPromise(client.authTokenManager.getAuthToken());
-    client.getPlans(projectName).then((plans) => {
-        let firstPlan: number = 0;
+    testClient._setInitializationPromise(testClient.authTokenManager.getAuthToken());
+    testClient.getPlans(projectName).then((plans) => {
+        //let firstPlan: number = 0;
+        let flag: boolean = false;
+        let firstPlan = 0;
         plans.forEach(plan => {
             selectPlan.append(new Option(plan.name, plan.id.toString()));
+            if (plan.id == selectedId)
+                flag = true;
             if (firstPlan == 0)
                 firstPlan = plan.id;
         });
+        if (flag) {
+            firstPlan = selectedId;
+        }
+        else {
+            SetValue(webContext.user.name + "_" + webContext.project.name, firstPlan);
+        }
         $("#loading").hide();
+        selectPlan.val(firstPlan);
         selectPlan.show();
-        BuildTableTestGrid(projectName, firstPlan);
+        BuildTableTestGrid(projectName, firstPlan, selectPlan);
         BuildTestsSum(projectName, firstPlan);
     })
     selectPlan.removeAttr("disabled");
 }
-async function BuildTableTestGrid(projectName: string, testPlanId: number): Promise<void> {
+async function BuildTableTestGrid(projectName: string, testPlanId: number, selectPlan: JQuery): Promise<void> {
+    // turn off all view
+    $("#mainFunction").attr("disabled", "true");
+    selectPlan.attr("disabled", "true");
+    $("#analyzingGif").show();
+    // turn on gif waiting
     let container = $("#grid-container");
     let planInfo = $("#PlanInfos");
     container.empty();
     planInfo.empty();
-    let selectedPlan = await client.getPlanById(projectName, testPlanId);
+    let selectedPlan = await testClient.getPlanById(projectName, testPlanId);
     ShowPlaneInfos(selectedPlan, testPlanId, planInfo, projectName);
     let palneFullInfo: Array<TestSuiteModel> = await GetTestPlanSuites(selectedPlan, testPlanId, planInfo, projectName);
-    //this.palnInfoExcell = palneFullInfo;
+    palnInfoExcell = palneFullInfo;
     let rootTestCase: TestSuiteModel = ReArangeSuiteList(palneFullInfo);
     BuildTreeView(rootTestCase);
+    $("#mainFunction").removeAttr("disabled");
+    selectPlan.removeAttr("disabled");
+    $("#analyzingGif").hide();
 }
 function ShowPlaneInfos(selectedPlan: TestPlan, testPlanId: number, planInfo: JQuery, projectName: string) {
     let table = $("<table />");
@@ -173,7 +203,7 @@ function ShowPlaneInfos(selectedPlan: TestPlan, testPlanId: number, planInfo: JQ
     planInfo.append(table);
 }
 async function GetTestPlanSuites(selectedPlan: TestPlan, testPlanId: number, planInfo: JQuery, projectName: string) {
-    let suites = await client.getTestSuitesForPlan(projectName, testPlanId);
+    let suites = await testClient.getTestSuitesForPlan(projectName, testPlanId);
     if (suites.length > 0) {
         return await GetTestSuites(suites, projectName, testPlanId);
     }
@@ -205,7 +235,7 @@ async function GetTestSuites(suites: TestSuite[], projectName: string, testPlanI
 }
 async function GetTestPoints(projectName: string, testPlanId: number, suiteId: number) {
     let TestPointList = new Array<TestPointModel>();
-    let testPoints = await client.getPoints(projectName, testPlanId, suiteId);
+    let testPoints = await testClient.getPoints(projectName, testPlanId, suiteId);
     for (const testPoint of testPoints) {
         let testPointModel: TestPointModel = await GetTestRunsResults(projectName, testPoint);
         TestPointList.push(testPointModel);
@@ -223,22 +253,22 @@ async function GetTestRunsResults(projectName: string, testPoint: TestPoint) {
     let TestCaseWI = await WIClient.getWorkItem(+testPoint.testCase.id);
     let testName = TestCaseWI.fields["System.Title"].toString();
     if (testPoint.lastTestRun.id != "0") {
-        let run = await client.getTestRunById(projectName, +testPoint.lastTestRun.id);
-        let testResult = await client.getTestResultById(projectName, run.id, +testPoint.lastResult.id, ResultDetails.Iterations)
-        if (testResult.iterationDetails.length > 0) {
-            // try get the action that failed the run
-            try {
-                let actionResults = await client.getActionResults(projectName, run.id, testResult.id, testResult.iterationDetails.pop().id)
-                actionResults.forEach(action => {
-                    if (action.outcome == "Failed")
-                        action.actionPath
-                    stepFaild += action.errorMessage;
-                });
-            }
-            catch{
+        let run = await testClient.getTestRunById(projectName, +testPoint.lastTestRun.id);
+        let testResult = await testClient.getTestResultById(projectName, run.id, +testPoint.lastResult.id, ResultDetails.Iterations)
+        // if (testResult.iterationDetails.length > 0) {
+        //     // try get the action that failed the run
+        //     try {
+        //         let actionResults = await testClient.getActionResults(projectName, run.id, testResult.id, testResult.iterationDetails.pop().id)
+        //         actionResults.forEach(action => {
+        //             if (action.outcome == "Failed")
+        //                 action.actionPath
+        //             stepFaild += action.errorMessage;
+        //         });
+        //     }
+        //     catch{
 
-            }
-        }
+        //     }
+        // }
         incomplite = run.incompleteTests;
         notApplicable = run.notApplicableTests;
         passed = run.passedTests;
@@ -401,7 +431,7 @@ async function BuildTestsSum(projectName: string, selectedPlane: number) {
         totalPoints: 0
     }
     let SumSuites: Array<SumeSuite> = new Array<SumeSuite>();
-    let suites = await client.getTestSuitesForPlan(projectName, selectedPlane);
+    let suites = await testClient.getTestSuitesForPlan(projectName, selectedPlane);
     for (const suite of suites) {
         let newSuite: SumeSuite = await GetSuiteSum(suite);
         totalTests.Blocked += newSuite.Blocked;
@@ -436,7 +466,7 @@ async function GetSuiteSum(suite: TestSuite) {
     suiteSum.NotApplicable = 0
     suiteSum.InProgress = 0
     suiteSum.totalPoints = suite.testCaseCount
-    let points = await client.getPoints(suite.project.name, +suite.plan.id, suite.id);
+    let points = await testClient.getPoints(suite.project.name, +suite.plan.id, suite.id);
     for (const point of points) {
         switch (point.outcome) {
             case "None": {
@@ -497,34 +527,37 @@ function BuildTestsView(SumSuites: Array<SumeSuite>) {
     graphContainer.append(container);
 }
 function BuildGraphs(SumSuites: Array<SumeSuite>) {
-    var $container = $('#graph-container');
+    let $container = $('#graph-container');
     $container.empty();
-    $container.css("width", "100%")
-    let $graphLine = $("<tr />")
-    $graphLine.css("width", "100%")
-    //let $graphLine2 = $("<tr />")
-    var $leftGraph = $("<td />")
-    $leftGraph.css("width", "60%")
-    var $midelGraph = $("<td />")
-    var $rightGraph = $("<td />")
-    //
-    let $spanLeft = $("<span />")
-    $spanLeft.css("width", "100%")
-    let $spanRight = $("<span />")
-    let $spanMidl = $("<span />")
-    $leftGraph.append($spanLeft);
-    //$midelGraph.append($spanMidel);
-    $midelGraph.append($spanMidl);
-    $rightGraph.append($spanRight);
-    //
-    $graphLine.append($leftGraph);
-    $graphLine.append($midelGraph);
-    $graphLine.append($rightGraph);
-    $container.append($graphLine);
+    $container.css("width", "100%");
+    let $spanMainChart = $("<span />");
+    let $firstLine = $("<div />");
+    $firstLine.append($spanMainChart);
+    let $spanTotalPie = $("<span />");
+    let $spanDynamiclPie = $("<span />");
+    let $secondLine = $("<tr />");
+    let $leftLabel = $("<td />");
+    $leftLabel.text("Total Suites");
+    $leftLabel.addClass("graphLabels")
+    let $rightLabel = $("<td />");
+    $rightLabel.text("Selected Suite");
+    $rightLabel.addClass("graphLabels");
+    let $therdLine = $("<tr />");
+    let $leftPie = $("<td />");
+    let $rightPie = $("<td />");
+    $leftPie.append($spanTotalPie);
+    $rightPie.append($spanDynamiclPie);
+    $secondLine.append($leftLabel);
+    $secondLine.append($rightLabel);
+    $therdLine.append($leftPie);
+    $therdLine.append($rightPie);
+    $container.append($firstLine);
+    $container.append($secondLine);
+    $container.append($therdLine);
     let cakeGraphId = SumSuites.length - 1;
-    BuildStackedColumnChart(SumSuites, $spanLeft, $spanRight);
-    BuildPieChart(SumSuites[0], $spanRight);
-    BuildPieChart(SumSuites[cakeGraphId], $spanMidl)
+    BuildStackedColumnChart(SumSuites, $spanMainChart, $spanDynamiclPie);
+    BuildPieChart(SumSuites[0], $spanDynamiclPie, "Total Suits");
+    BuildPieChart(SumSuites[cakeGraphId], $spanTotalPie, "Selected Suits");
 }
 function BuildStackedColumnChart(SumSuites: Array<SumeSuite>, $graphSpan: JQuery, $dinamicPieSpan: JQuery) {
     let Paused = [];
@@ -577,37 +610,41 @@ function BuildStackedColumnChart(SumSuites: Array<SumeSuite>, $graphSpan: JQuery
     let toolTipOption: TooltipOptions = {
         onlyShowFocusedSeries: true,
     }
-    let chartStackedColumnOptions: CommonChartOptions = { 
+    let chartStackedColumnOptions: CommonChartOptions = {
         "tooltip": toolTipOption,
         "chartType": ChartTypesConstants.StackedColumn,
+
         "xAxis": {
             canZoom: true,
             suppressLabelTruncation: true,
             labelValues: labels
         },
-        "yAxis":{
-           renderToEdges:true           
-        },        
+        "yAxis": {
+            renderToEdges: true
+        },
         "series": series,
         "click": (clickeEvent: ClickEvent) => {
             $dinamicPieSpan.empty();
-            BuildPieChart(SumSuites[clickeEvent.seriesDataIndex], $dinamicPieSpan)
+            BuildPieChart(SumSuites[clickeEvent.seriesDataIndex], $dinamicPieSpan, "Selected suits")
         },
     }
     Services.ChartsService.getService().then((chartService) => {
         chartService.createChart($graphSpan, chartStackedColumnOptions);
     });
 }
-function BuildPieChart(selectedSuite: SumeSuite, $rightGraph: JQuery) {
+function BuildPieChart(selectedSuite: SumeSuite, $rightGraph: JQuery, title: string) {
     let legend: LegendOptions = {
         enabled: false
     }
     let chartPieOptions: CommonChartOptions = {
+        "title": title,
+        "suppressMargin": true,
         "legend": legend,
         suppressAnimation: true,
         hostOptions: { height: 300, width: 300 },
         "chartType": ChartTypesConstants.Pie,
         "xAxis": {
+            title: title,
             canZoom: true,
             labelsEnabled: false,
             // suppressLabelTruncation: true,
@@ -626,7 +663,7 @@ function BuildPieChart(selectedSuite: SumeSuite, $rightGraph: JQuery) {
         }],
         "specializedOptions": {
             showLabels: true,
-            size: "200"
+            size: "80%"
         },
     }
     Services.ChartsService.getService().then((chartService) => {
@@ -635,9 +672,7 @@ function BuildPieChart(selectedSuite: SumeSuite, $rightGraph: JQuery) {
 }
 var id = VSS.getContribution().id;
 VSS.register(id, Init_Page);
-VSS.resize();
 Init_Page();
-
 
 // GET http://elitebooki7:9090/tfs/DefaultCollection/Avi%20Test/_apis/test/Runs/12/results?detailsToInclude=WorkItems,Iterations&$top=100&api-version=5.1
 // GET http://elitebooki7:9090/tfs/DefaultCollection/Avi%20Test/_apis/test/Runs/5/Results/1/Iterations/1/ActionResults

@@ -17,21 +17,21 @@
             usePlatformStyles: true
         });
     </script>
-    <div>
+
+    <div id="mainFunction" class="panel">
         <tr>
             <td id="Tests" class="selectTitle">
                 <span class="Select">Test Plans : </span>
                 <span id="loading" class="Select"> Loading....</span>
-                <select id="selectPlan"></select>
+                <select id="selectPlan" class="selectPlan"></select>
+                <span id="excellButton" class="ExcellButton">
+                    <img class="imgX" alt="export to excell file" src="images/excell.jpg"/>
+                    Export to Csv File</span>
             </td>
             <td>
                 <span class="Title">
-                    Test Analysis
+                    Test Analysis 
                 </span>
-            </td>
-            <td>
-                <span id="excellButton" class="ExcellButton"></span>
-                <span class="ExcellButton">Export to Csv File</span>
             </td>
             <td class="radio-div">
                 <input type="radio" id="Graphs" name="view" value="Test Graphs">
@@ -42,11 +42,12 @@
                 <label for="Test Table" class="radio">Test Table</label>
             </td>
         </tr>
+        <div id="PlanInfos"></div>
+        <div id="grid-container" class="MainTableDiv"></div>
+        <div id="table-container"></div>
+        <div id="graph-container"></div>
     </div>
-    <div id="PlanInfos"></div>
-    <div id="grid-container" class="MainTableDiv"></div>
-    <div id="table-container"></div>
-    <div id="graph-container"></div>
+    <img src="images/analyzing.gif" class="box" id="analyzingGif"></img>
     <script type="text/javascript">
         VSS.require(["scripts/app", "Charts/Services"], function() {
             VSS.notifyLoadSucceeded();

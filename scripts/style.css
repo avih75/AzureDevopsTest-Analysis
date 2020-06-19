@@ -3,6 +3,11 @@
     padding: 180px;
 }
 
+.selectPlan {
+    font-size: larger;
+    color: royalblue;
+}
+
 .selectTitle {
     flex-wrap: wrap;
     padding: 10px;
@@ -130,15 +135,37 @@
 
 .ExcellButton {
     cursor: pointer;
-    margin-right: 6px;
-    padding-right: 3px;
-    padding: 200;
+    padding: 100;
     display: inline-block;
     font-size: larger;
     color: green;
 }
 
-.imgExcell {
-    width: 25px;
-    height: 25px;
+.ExcellButton1 {
+    cursor: pointer;
+    padding: 100;
+    display: inline-block;
+    font-size: larger;
+    color: green;
+}
+
+
+/* .imgExcell { */
+
+.imgX {
+    margin-left: 5px;
+    width: 18px;
+    height: 18px;
+}
+
+.graphLabels {
+    color: blue;
+    font-size: x-large;
+}
+
+.box {
+    position: relative;
+    height: 100px;
+    width: 100px;
+    left: 40%;
 }
