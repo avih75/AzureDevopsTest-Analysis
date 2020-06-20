@@ -17,7 +17,7 @@
             usePlatformStyles: true
         });
     </script>
-
+    <img src="images/analyzing.gif" class="analyzingGif" id="analyzingGif"></img>
     <div id="mainFunction" class="panel">
         <tr>
             <td id="Tests" class="selectTitle">
@@ -26,7 +26,8 @@
                 <select id="selectPlan" class="selectPlan"></select>
                 <span id="excellButton" class="ExcellButton">
                     <img class="imgX" alt="export to excell file" src="images/excell.jpg"/>
-                    Export to Csv File</span>
+                    Export to Csv File
+                </span>
             </td>
             <td>
                 <span class="Title">
@@ -42,12 +43,21 @@
                 <label for="Test Table" class="radio">Test Table</label>
             </td>
         </tr>
+
         <div id="PlanInfos"></div>
         <div id="grid-container" class="MainTableDiv"></div>
         <div id="table-container"></div>
-        <div id="graph-container"></div>
+        <div id="graph-container">
+            <span id="DeepRadioButton" class="DeepRadioButton" style="margin: 10px;">
+                <button id="refresh">Refresh</button>
+                <input type="checkbox" id="deep" value="Deep" checked="true">
+                <label >Deep View</label>
+                <label id="levelText" class="selectLevel" disable="true" >Levels:</label>
+                <input type="text" id="level" class="selectLevel" >
+            </span>
+        </div>
     </div>
-    <img src="images/analyzing.gif" class="box" id="analyzingGif"></img>
+
     <script type="text/javascript">
         VSS.require(["scripts/app", "Charts/Services"], function() {
             VSS.notifyLoadSucceeded();

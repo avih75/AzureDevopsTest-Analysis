@@ -163,9 +163,10 @@
     font-size: x-large;
 }
 
-.box {
-    position: relative;
+.analyzingGif {
+    position: absolute;
     height: 100px;
     width: 100px;
     left: 40%;
+    top: 50%;
 }
