@@ -9,7 +9,7 @@ import { CsvDataService } from "./CsvHelper";
 import { GetLastTimeValue, SetValue } from "./storageHelper";
 import { authTokenManager } from "VSS/Authentication/Services";
 let testClient = TestRestClient.getClient();
-const WIClient: WorkItemManagment.WorkItemTrackingHttpClient4_1 = WorkItemManagment.getClient();
+let WIClient: WorkItemManagment.WorkItemTrackingHttpClient4_1 = WorkItemManagment.getClient();
 let SumSuitesforExecell: Array<SumeSuite>;
 let palnInfoExcell: Array<TestSuiteModel>;
 const csvFileName: string = "Export.csv";
@@ -54,6 +54,7 @@ class TestSuiteModel {
     suiteType: string;
     testCaseCount: number;
     allTestCases: number;
+    testSuiteLevel: number;
 } class SumeSuite {
     SuiteName: string;
     Passed: number;
@@ -64,12 +65,7 @@ class TestSuiteModel {
     InProgress: number;
     Paused: number;
     Blocked: number;
-    suiteLevel: SuiteLevel;
-}
-enum SuiteLevel {
-    RootSuite,
-    MainSuite,
-    StandartSuite
+    suiteLevel: number;
 }
 async function Init_Page(): Promise<void> {
     let webContext = VSS.getWebContext();
@@ -85,6 +81,7 @@ async function Init_Page(): Promise<void> {
     // start with graph view
     $("#Graphs").prop("checked", true);
     $("#graph-container").show();
+    $("#level").val(0);
     let $excellButton = $("#excellButton");
     $excellButton.click(() => {
         CsvDataService.exportToCsv(csvFileName, SumSuitesforExecell);
@@ -95,7 +92,6 @@ async function Init_Page(): Promise<void> {
         let selectPlan = $("#selectPlan");
         BuildTableTestGrid(projectName, selectedPlan, selectPlan);
         BuildTestsSum(projectName, selectedPlan);
-        // OnSelectChange(selectPlan, webContext, projectName)
     }
     );
     $("#graph-container").on("change", "#deep", function () {
@@ -156,50 +152,44 @@ function BuildRadioButton() {
         }
     });
 }
-function BuildSelect(projectName: string, selectPlan: JQuery) {
+async function BuildSelect(projectName: string, selectPlan: JQuery) {
     let webContext = VSS.getWebContext();
     selectPlan.attr("disabled", "true");
-    //OnSelectChange(selectPlan, webContext, projectName)
-    selectPlan.change(function () {
+    selectPlan.change(async function () {
         selectPlan.attr("disabled", "true");
         let selectedPlan = $(this).children("option:selected").val();
         SetValue(webContext.user.name + "_" + webContext.project.name, selectedPlan);
-        BuildTableTestGrid(projectName, selectedPlan, selectPlan);
-        BuildTestsSum(projectName, selectedPlan);
+        await BuildTableTestGrid(projectName, selectedPlan, selectPlan);
+        await BuildTestsSum(projectName, selectedPlan);
         selectPlan.removeAttr("disabled");
     });
     testClient._setInitializationPromise(testClient.authTokenManager.getAuthToken());
-    testClient.getPlans(projectName).then((plans) => {
-        //let firstPlan: number = 0;
-        let flag: boolean = false;
-        let firstPlan = 0;
-        plans.forEach(plan => {
-            selectPlan.append(new Option(plan.name, plan.id.toString()));
-            if (plan.id == selectedId)
-                flag = true;
-            if (firstPlan == 0)
-                firstPlan = plan.id;
-        });
-        if (flag) {
-            firstPlan = selectedId;
-        }
-        else {
-            SetValue(webContext.user.name + "_" + webContext.project.name, firstPlan);
-        }
-        $("#loading").hide();
-        selectPlan.val(firstPlan);
-        selectPlan.show();
-        BuildTableTestGrid(projectName, firstPlan, selectPlan);
-        BuildTestsSum(projectName, firstPlan);
-    })
-    selectPlan.removeAttr("disabled");
-}
-function OnSelectChange(selectPlan: JQuery, webContext: WebContext, projectName: string) {
-    selectPlan.attr("disabled", "true");
-    let selectedPlan = $(this).children("option:selected").val();
-    SetValue(webContext.user.name + "_" + webContext.project.name, selectedPlan);
-    BuildTableTestGrid(projectName, selectedPlan, selectPlan);
-    BuildTestsSum(projectName, selectedPlan);
+    WIClient._setInitializationPromise(testClient.authTokenManager.getAuthToken());
+    let plans: TestPlan[] = await testClient.getPlans(projectName);
+    /////////
+    // testClient.getPlans(projectName).then(async (plans) => {
+    //let firstPlan: number = 0;
+    let flag: boolean = false;
+    let firstPlan = 0;
+    plans.forEach(plan => {
+        selectPlan.append(new Option(plan.name, plan.id.toString()));
+        if (plan.id == selectedId)
+            flag = true;
+        if (firstPlan == 0)
+            firstPlan = plan.id;
+    });
+    if (flag) {
+        firstPlan = selectedId;
+    }
+    else {
+        SetValue(webContext.user.name + "_" + webContext.project.name, firstPlan);
+    }
+    $("#loading").hide();
+    selectPlan.val(firstPlan);
+    selectPlan.show();
+    await BuildTableTestGrid(projectName, firstPlan, selectPlan);
+    await BuildTestsSum(projectName, firstPlan);
+    // })
     selectPlan.removeAttr("disabled");
 }
 async function BuildTableTestGrid(projectName: string, testPlanId: number, selectPlan: JQuery): Promise<void> {
@@ -256,9 +246,11 @@ async function GetTestSuites(suites: TestSuite[], projectName: string, testPlanI
         newSuite.suiteId = suite.id;
         try {
             newSuite.perentId = suite.parent.id;
+            newSuite.testSuiteLevel = -1;
         }
         catch {
             newSuite.perentId = "0";
+            newSuite.testSuiteLevel = 0;
         };
         newSuite.allTestCases = suite.testCaseCount;
         newSuite.suiteName = suite.name;
@@ -319,6 +311,10 @@ async function GetTestRunsResults(projectName: string, testPoint: TestPoint) {
     if (outcome == "Unspecified") {
         outcome = "Not Run";
     }
+    let assingTo: string = "None";
+    if (testPoint.assignedTo.displayName != null) {
+        assingTo = testPoint.assignedTo.displayName.split(' <')[0];
+    }
     let testPointModel: TestPointModel = {
         incompliteTests: incomplite,
         notApplicableTests: notApplicable,
@@ -326,7 +322,7 @@ async function GetTestRunsResults(projectName: string, testPoint: TestPoint) {
         postProcessState: postProcess,
         totalTests: total,
         id: testPoint.id.toString(),
-        assignedTo: testPoint.assignedTo.displayName.split(' <')[0],
+        assignedTo: assingTo,
         comment: testPoint.comment,
         outCome: outcome,
         lastTestRun: testPoint.lastTestRun.name,
@@ -351,6 +347,13 @@ function ReArangeSuiteList(palneFullInfo: Array<TestSuiteModel>) {
         }
         else {
             rootSuite = TestSuiteChilde;
+        }
+    });
+    palneFullInfo.forEach(suite => {
+        if (suite.childrenSuites.length > 0) {
+            suite.childrenSuites.forEach(child => {
+                child.testSuiteLevel = suite.testSuiteLevel + 1;
+            });
         }
     });
     return rootSuite;
@@ -467,7 +470,7 @@ async function BuildTestsSum(projectName: string, selectedPlane: number) {
         Passed: 0,
         Paused: 0,
         totalPoints: 0,
-        suiteLevel: SuiteLevel.RootSuite
+        suiteLevel: 0
     }
     let SumSuites: Array<SumeSuite> = new Array<SumeSuite>();
     let suites = await testClient.getTestSuitesForPlan(projectName, selectedPlane);
@@ -495,15 +498,10 @@ async function BuildTestsSum(projectName: string, selectedPlane: number) {
 }
 async function GetSuiteSum(suite: TestSuite, rootName: string) {
     let suiteSum: SumeSuite = new SumeSuite();
-    if (suite.parent == undefined) {
-        suiteSum.suiteLevel = SuiteLevel.RootSuite;
-    }
-    else if (rootName == suite.parent.name) {
-        suiteSum.suiteLevel = SuiteLevel.MainSuite;
-    }
-    else {
-        suiteSum.suiteLevel = SuiteLevel.StandartSuite;
-    }
+    palnInfoExcell.forEach(element => {
+        if (element.suiteName == suite.name)
+            suiteSum.suiteLevel = element.testSuiteLevel;
+    });
     suiteSum.SuiteName = suite.name;
     suiteSum.Blocked = 0
     suiteSum.Paused = 0
@@ -587,32 +585,43 @@ function BuildGraphs(SumSuites: Array<SumeSuite>) {
     let $spanMainChart = $("<span />");
     $firstLine.append($spanMainChart);
 
-    let $rightLabel = $("<td />");
-    $rightLabel.text("Selected Suite");
-    $rightLabel.addClass("graphLabels");
-    let $leftLabel = $("<td />");
-    $leftLabel.text("Total Suites");
-    $leftLabel.addClass("graphLabels")
-    let $moreRightLabel = $("<td />");
-    $moreRightLabel.text("Empty Suites");
-    $moreRightLabel.addClass("graphLabels")
-    $secondLine.append($leftLabel);
-    $secondLine.append($rightLabel);
-    $secondLine.append($moreRightLabel);
+    let $selectedPieLabell = $("<td />");
+    $selectedPieLabell.text("Selected Suite");
+    $selectedPieLabell.addClass("graphLabels");
+    let $totalLabell = $("<td />");
+    $totalLabell.text("Total Suites");
+    $totalLabell.addClass("graphLabels");
+    let $emptySuiteLabell = $("<td />");
+    $emptySuiteLabell.text("Empty Suites");
+    $emptySuiteLabell.addClass("graphLabels");
+    let $selectedChart = $("<td />");
+    //$selectedChart.text("Selectd Suite Chart");
+    $selectedChart.addClass("graphLabels");
+    $secondLine.append($totalLabell);
+    $secondLine.append($selectedPieLabell);
+    $secondLine.append($emptySuiteLabell);
+    $secondLine.append($selectedChart);
 
     let $spanTotalPie = $("<span />");
     let $spanDynamiclPie = $("<span />");
     let $spanEmptySuites = $("<span />");
-    let $leftPie = $("<td />");
-    let $rightPie = $("<td />");
-    let $moreRight = $("<td />");
-    $moreRight.css("vertical-align", "text-top");
-    $leftPie.append($spanTotalPie);
-    $rightPie.append($spanDynamiclPie);
-    $moreRight.append($spanEmptySuites);
-    $therdLine.append($leftPie);
-    $therdLine.append($rightPie);
-    $therdLine.append($moreRight);
+    let $spanSelectedChart = $("<span />");
+    let $totalSuitesPie = $("<td />");
+    let $selectedSuitePie = $("<td />");
+    let $selectedSuiteChart = $("<td />");
+    let $emptySuitt = $("<td />");
+    $emptySuitt.css("vertical-align", "text-top");
+    //$totalSuitesPie.css("vertical-align", "text-top");
+    //$selectedSuitePie.css("vertical-align", "text-top");
+    //$selectedSuiteChart.css("vertical-align", "text-top");
+    $totalSuitesPie.append($spanTotalPie);
+    $selectedSuitePie.append($spanDynamiclPie);
+    $emptySuitt.append($spanEmptySuites);
+    $selectedSuiteChart.append($spanSelectedChart)
+    $therdLine.append($totalSuitesPie);
+    $therdLine.append($selectedSuitePie);
+    $therdLine.append($emptySuitt);
+    $therdLine.append($selectedSuiteChart)
 
     $container.append($firstLine);
     $table.append($secondLine);
@@ -620,12 +629,13 @@ function BuildGraphs(SumSuites: Array<SumeSuite>) {
     $container.append($table);
 
     let cakeGraphId = SumSuites.length - 1;
-    BuildStackedColumnChart(SumSuites, $spanMainChart, $spanDynamiclPie, $spanEmptySuites);
+    BuildStackedColumnChart(SumSuites, $spanMainChart, $spanDynamiclPie, $spanEmptySuites, $selectedSuiteChart);
     BuildPieChart(SumSuites[0], $spanDynamiclPie, "Total Suits");
     BuildPieChart(SumSuites[cakeGraphId], $spanTotalPie, "Selected Suits");
 }
-function BuildStackedColumnChart(SumSuites: Array<SumeSuite>, $graphSpan: JQuery, $dinamicPieSpan: JQuery, $emptySuite: JQuery) {
+function BuildStackedColumnChart(SumSuites: Array<SumeSuite>, $graphSpan: JQuery, $dinamicPieSpan: JQuery, $emptySuite: JQuery, $selectedChart: JQuery) {
     let deep = $('#deep').is(":checked");
+    let howDeep = $("#level").val();
     let Paused = [];
     let Blocked = [];
     let Passed = [];
@@ -636,9 +646,9 @@ function BuildStackedColumnChart(SumSuites: Array<SumeSuite>, $graphSpan: JQuery
     let labels = [];
     let emptySuites = [];
     for (let i = 0; i < SumSuites.length - 1; i++) {
-        if (deep == true || SumSuites[i].suiteLevel != SuiteLevel.StandartSuite) {
+        if (deep == true || SumSuites[i].suiteLevel <= howDeep) {
             if (SumSuites[i].totalPoints > 0) {
-                labels.push(SumSuites[i].SuiteName);//+ " Sum: " + SumSuites[i].totalPoints
+                labels.push(SumSuites[i].SuiteName);
                 Passed.push([i, SumSuites[i].Passed]);
                 Failed.push([i, SumSuites[i].Failed]);
                 NotRun.push([i, SumSuites[i].NotRun]);
@@ -698,7 +708,7 @@ function BuildStackedColumnChart(SumSuites: Array<SumeSuite>, $graphSpan: JQuery
         "series": series,
         "click": (clickeEvent: ClickEvent) => {
             $dinamicPieSpan.empty();
-            BuildPieChart(SumSuites[clickeEvent.seriesDataIndex], $dinamicPieSpan, "Selected suits")
+            BuildPieChart(SumSuites[clickeEvent.seriesDataIndex], $dinamicPieSpan, "Selected suits");
         },
     }
     BuildEmptyStuiteList(emptySuites, $emptySuite);
@@ -707,16 +717,22 @@ function BuildStackedColumnChart(SumSuites: Array<SumeSuite>, $graphSpan: JQuery
     });
 }
 function BuildEmptyStuiteList(emptySuiteList: Array<string>, $emptySuite: JQuery) {
+    let $mainContainer = $("<div />");
+    $mainContainer.css("vertical-align", "text-top");
+    let $container = $("<ul />")
+    $container.css("vertical-align", "text-top");
     if (emptySuiteList.length > 0) {
-        //let $emptyList = $("<ul />");
         emptySuiteList.forEach(Suite => {
-            let emptySuite = $("<li />");
-            emptySuite.text(Suite);
-            emptySuite.css("font-size", "large");
-            $emptySuite.append(emptySuite)
-            //emptySuite.append(emptySuite);
+            let $liSuite = $("<li />");
+            $liSuite.text(Suite);
+            $liSuite.css("font-size", "large");
+            $liSuite.css("vertical-align", "text-top");
+            $container.append($liSuite)
         });
-        //$emptySuite.append($emptyList);
+        $container.css("overflow", "scroll");
+        $container.css("border", "1px solid black");
+        $mainContainer.append($container);
+        $emptySuite.append($mainContainer);
     }
 }
 function BuildPieChart(selectedSuite: SumeSuite, $rightGraph: JQuery, title: string) {
@@ -767,7 +783,6 @@ Init_Page();
 // http://elitebooki7:9090/tfs/DefaultCollection/A/_apis/test/Runs/33/Results/100000/Iterations/1/ActionResults
 
 // need to add 
-// change the graph view by the checkbox
 // include sub suite/not
 
 // $(document).ready(function() {
@@ -782,3 +797,6 @@ Init_Page();
 //         $('#textbox1').val(this.checked);        
 //     });
 // });
+// style="border:1px solid black;overflow:scroll;"
+// Tsabar,26296,26794
+// point 6412

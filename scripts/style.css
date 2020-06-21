@@ -161,6 +161,8 @@
 .graphLabels {
     color: blue;
     font-size: x-large;
+    vertical-align: text-top;
+    text-align-last: center;
 }
 
 .analyzingGif {
