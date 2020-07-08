@@ -540,24 +540,25 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
     }
     function BuildGraphs(SumSuites) {
         let $container = $('#graph-container');
+        let $radioButtons = $("#DeepRadioButton");
         $container.addClass("scroller");
+        $container.css("width", "100%");
+        $container.css("height", "100%");
+        $container.empty();
+        $container.append($radioButtons);
+        let $spanMainChart = $("<span />");
+        let $firstLine = $("<div />");
+        $firstLine.append($spanMainChart);
+        $container.append($firstLine);
         let $table = $("<table />");
         $table.addClass("scroller");
         $table.css("height", "100%");
-        let $radioButtons = $("#DeepRadioButton");
-        $container.empty();
-        $container.css("width", "100%");
-        $container.css("height", "100%");
-        $container.append($radioButtons);
-        let $firstLine = $("<div />");
         let $secondLine = $("<tr />");
         $secondLine.css("vertical-align", "bottom");
         let $therdLine = $("<tr />");
         $therdLine.css("height", "90%");
         $therdLine.addClass("scroller");
         $therdLine.css("vertical-align", "top");
-        let $spanMainChart = $("<span />");
-        $firstLine.append($spanMainChart);
         let $selectedPieLabell = $("<td />");
         $selectedPieLabell.text("Selected Suite");
         $selectedPieLabell.addClass("graphLabels");
@@ -589,7 +590,6 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
         $therdLine.append($selectedSuitePie);
         $therdLine.append($emptySuitt);
         $therdLine.append($selectedSuiteChart);
-        $container.append($firstLine);
         let $secDev = $("<div />");
         $table.append($secondLine);
         $table.append($therdLine);
@@ -712,7 +712,6 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
             "suppressMargin": true,
             "legend": legend,
             suppressAnimation: true,
-            hostOptions: { height: 300, width: 300 },
             "chartType": Contracts_1.ChartTypesConstants.Pie,
             "xAxis": {
                 title: title,

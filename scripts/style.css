@@ -177,3 +177,9 @@
     overflow: "auto";
     vertical-align: "top"
 }
+
+.sidBySide {
+    float: left;
+    width: 30%;
+    height: auto;
+}

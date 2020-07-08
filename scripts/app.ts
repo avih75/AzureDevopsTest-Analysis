@@ -577,16 +577,52 @@ function BuildTestsView(SumSuites: Array<SumeSuite>) {
 }
 function BuildGraphs(SumSuites: Array<SumeSuite>) {
     let $container = $('#graph-container');
-    $container.addClass("scroller")
+    let $radioButtons = $("#DeepRadioButton");
+    $container.addClass("scroller");
+    $container.css("width", "100%");
+    $container.css("height", "100%");
+    $container.empty();
+
+    $container.append($radioButtons);
+    
+    let $spanMainChart = $("<span />");
+    let $firstLine = $("<div />");
+    $firstLine.append($spanMainChart);
+    $container.append($firstLine);
+
+    // new test
+    // let $totalLabell = $("<div />");
+    // $totalLabell.text("Total Suites");
+    // $totalLabell.addClass("graphLabels");
+    // let $selectedPieLabell = $("<div />");
+    // $selectedPieLabell.text("Selected Suite");
+    // $selectedPieLabell.addClass("graphLabels");
+    // let $emptySuiteLabell = $("<div />");
+    // $emptySuiteLabell.text("Empty Suites");
+    // $emptySuiteLabell.addClass("graphLabels");
+    // let $secondLine = $("<div />");
+    // $secondLine.addClass("sidBySide");
+    // $secondLine.append($totalLabell);
+    // $secondLine.append($selectedPieLabell);
+    // $secondLine.append($emptySuiteLabell);
+    
+    // let $spanTotalPie = $("<span />");
+    // let $spanDynamiclPie = $("<span />");
+    // let $spanEmptySuites = $("<span />");
+    // $totalLabell.append($spanTotalPie);
+    // $selectedPieLabell.append($spanDynamiclPie);
+    // $emptySuiteLabell.append($spanEmptySuites);
+    // $container.append($secondLine);
+    // let $totalSuitesPie = $("<div />");
+    // let $selectedSuitePie = $("<div />"); 
+    // let $emptySuitt = $("<div />");
+ 
+    // end test
+
+    // this stop //
     let $table = $("<table />");
     $table.addClass("scroller");
     $table.css("height", "100%");
-    let $radioButtons = $("#DeepRadioButton");
-    $container.empty();
-    $container.css("width", "100%");
-    $container.css("height", "100%");
-    $container.append($radioButtons);
-    let $firstLine = $("<div />");
     let $secondLine = $("<tr />");
     $secondLine.css("vertical-align", "bottom");
     let $therdLine = $("<tr />");
@@ -594,8 +630,6 @@ function BuildGraphs(SumSuites: Array<SumeSuite>) {
     $therdLine.addClass("scroller");
     $therdLine.css("vertical-align", "top");
 
-    let $spanMainChart = $("<span />");
-    $firstLine.append($spanMainChart);
 
     let $selectedPieLabell = $("<td />");
     $selectedPieLabell.text("Selected Suite");
@@ -632,11 +666,7 @@ function BuildGraphs(SumSuites: Array<SumeSuite>) {
     $therdLine.append($emptySuitt);
     $therdLine.append($selectedSuiteChart)
 
-    // $firstLine.css("background-color", 'khaki')
-    // $secondLine.css("background-color", 'rosybrown')
-    // $therdLine.css("background-color", 'beige')
-
-    $container.append($firstLine);
+    
     let $secDev = $("<div />");
     $table.append($secondLine);
     $table.append($therdLine);
@@ -648,7 +678,7 @@ function BuildGraphs(SumSuites: Array<SumeSuite>) {
     BuildPieChart(SumSuites[0], $spanDynamiclPie, "Total Suits");
     BuildPieChart(SumSuites[cakeGraphId], $spanTotalPie, "Selected Suits");
 }
-function BuildStackedColumnChart(SumSuites: Array<SumeSuite>, $graphSpan: JQuery, $dinamicPieSpan: JQuery, $emptySuite: JQuery, $selectedChart: JQuery) {
+function BuildStackedColumnChart(SumSuites: Array<SumeSuite>, $graphSpan: JQuery, $dinamicPieSpan: JQuery, $emptySuite: JQuery, $selectedChart: JQuery) {//
     let deep = $('#deep').is(":checked");
     let howDeep = $("#level").val();
     let Paused = [];
@@ -759,7 +789,7 @@ function BuildPieChart(selectedSuite: SumeSuite, $rightGraph: JQuery, title: str
         "suppressMargin": true,
         "legend": legend,
         suppressAnimation: true,
-        hostOptions: { height: 300, width: 300 },
+        // hostOptions: { height: 300, width: 300 },
         "chartType": ChartTypesConstants.Pie,
         "xAxis": {
             title: title,
@@ -793,25 +823,3 @@ var id = VSS.getContribution().id;
 VSS.register(id, Init_Page);
 Init_Page();
 
-// GET http://elitebooki7:9090/tfs/DefaultCollection/Avi%20Test/_apis/test/Runs/12/results?detailsToInclude=WorkItems,Iterations&$top=100&api-version=5.1
-// GET http://elitebooki7:9090/tfs/DefaultCollection/Avi%20Test/_apis/test/Runs/5/Results/1/Iterations/1/ActionResults
-// http://elitebooki7:9090/tfs/DefaultCollection/A/_apis/test/Runs/33/Results/100000/Iterations/1/ActionResults
-
-// need to add 
-// include sub suite/not
-
-// $(document).ready(function() {
-//     //set initial state.
-//     $('#textbox1').val(this.checked);
-
-//     $('#checkbox1').change(function() {
-//         if(this.checked) {
-//             var returnVal = confirm("Are you sure?");
-//             $(this).prop("checked", returnVal);
-//         }
-//         $('#textbox1').val(this.checked);        
-//     });
-// });
-// style="border:1px solid black;overflow:scroll;"
-// Tsabar,26296,26794
-// point 6412
