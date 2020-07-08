@@ -32,10 +32,11 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
             catch (_a) {
             }
             VSS.resize();
-            VSS.applyTheme("Dark");
             buildView();
             $("#Graphs").prop("checked", true);
             $("#graph-container").show();
+            $("#graph-container").css("overflow-x", 'auto');
+            $("#graph-container").addClass("scroller");
             $("#level").val(0);
             let $excellButton = $("#excellButton");
             $excellButton.click(() => {
@@ -539,14 +540,22 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
     }
     function BuildGraphs(SumSuites) {
         let $container = $('#graph-container');
+        $container.addClass("scroller");
         let $table = $("<table />");
+        $table.addClass("scroller");
+        $table.css("height", "100%");
         let $radioButtons = $("#DeepRadioButton");
         $container.empty();
         $container.css("width", "100%");
+        $container.css("height", "100%");
         $container.append($radioButtons);
         let $firstLine = $("<div />");
         let $secondLine = $("<tr />");
+        $secondLine.css("vertical-align", "bottom");
         let $therdLine = $("<tr />");
+        $therdLine.css("height", "90%");
+        $therdLine.addClass("scroller");
+        $therdLine.css("vertical-align", "top");
         let $spanMainChart = $("<span />");
         $firstLine.append($spanMainChart);
         let $selectedPieLabell = $("<td />");
@@ -572,7 +581,6 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
         let $selectedSuitePie = $("<td />");
         let $selectedSuiteChart = $("<td />");
         let $emptySuitt = $("<td />");
-        $emptySuitt.css("vertical-align", "text-top");
         $totalSuitesPie.append($spanTotalPie);
         $selectedSuitePie.append($spanDynamiclPie);
         $emptySuitt.append($spanEmptySuites);
@@ -582,9 +590,11 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
         $therdLine.append($emptySuitt);
         $therdLine.append($selectedSuiteChart);
         $container.append($firstLine);
+        let $secDev = $("<div />");
         $table.append($secondLine);
         $table.append($therdLine);
-        $container.append($table);
+        $secDev.append($table);
+        $container.append($secDev);
         let cakeGraphId = SumSuites.length - 1;
         BuildStackedColumnChart(SumSuites, $spanMainChart, $spanDynamiclPie, $spanEmptySuites, $selectedSuiteChart);
         BuildPieChart(SumSuites[0], $spanDynamiclPie, "Total Suits");

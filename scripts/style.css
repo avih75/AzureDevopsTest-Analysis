@@ -172,3 +172,8 @@
     left: 40%;
     top: 50%;
 }
+
+.scroller {
+    overflow: "auto";
+    vertical-align: "top"
+}

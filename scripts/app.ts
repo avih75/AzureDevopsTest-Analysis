@@ -76,11 +76,12 @@ async function Init_Page(): Promise<void> {
 
     }
     VSS.resize();
-    VSS.applyTheme("Dark");
     buildView();
     // start with graph view
     $("#Graphs").prop("checked", true);
     $("#graph-container").show();
+    $("#graph-container").css("overflow-x", 'auto');
+    $("#graph-container").addClass("scroller")
     $("#level").val(0);
     let $excellButton = $("#excellButton");
     $excellButton.click(() => {
@@ -92,8 +93,7 @@ async function Init_Page(): Promise<void> {
         let selectPlan = $("#selectPlan");
         BuildTableTestGrid(projectName, selectedPlan, selectPlan);
         BuildTestsSum(projectName, selectedPlan);
-    }
-    );
+    });
     $("#graph-container").on("change", "#deep", function () {
         let deep = $('#deep').is(":checked");
         if (deep == true) {
@@ -104,8 +104,7 @@ async function Init_Page(): Promise<void> {
             $("#level").show();
             $("#levelText").show();
         }
-    }
-    );
+    });
 }
 function buildView() {
     let selectPlan = $("#selectPlan");
@@ -578,14 +577,22 @@ function BuildTestsView(SumSuites: Array<SumeSuite>) {
 }
 function BuildGraphs(SumSuites: Array<SumeSuite>) {
     let $container = $('#graph-container');
+    $container.addClass("scroller")
     let $table = $("<table />");
+    $table.addClass("scroller");
+    $table.css("height", "100%");
     let $radioButtons = $("#DeepRadioButton");
     $container.empty();
     $container.css("width", "100%");
+    $container.css("height", "100%");
     $container.append($radioButtons);
     let $firstLine = $("<div />");
     let $secondLine = $("<tr />");
+    $secondLine.css("vertical-align", "bottom");
     let $therdLine = $("<tr />");
+    $therdLine.css("height", "90%");
+    $therdLine.addClass("scroller");
+    $therdLine.css("vertical-align", "top");
 
     let $spanMainChart = $("<span />");
     $firstLine.append($spanMainChart);
@@ -615,10 +622,7 @@ function BuildGraphs(SumSuites: Array<SumeSuite>) {
     let $selectedSuitePie = $("<td />");
     let $selectedSuiteChart = $("<td />");
     let $emptySuitt = $("<td />");
-    $emptySuitt.css("vertical-align", "text-top");
-    //$totalSuitesPie.css("vertical-align", "text-top");
-    //$selectedSuitePie.css("vertical-align", "text-top");
-    //$selectedSuiteChart.css("vertical-align", "text-top");
+    //$emptySuitt.css("vertical-align", "text-top");
     $totalSuitesPie.append($spanTotalPie);
     $selectedSuitePie.append($spanDynamiclPie);
     $emptySuitt.append($spanEmptySuites);
@@ -628,10 +632,16 @@ function BuildGraphs(SumSuites: Array<SumeSuite>) {
     $therdLine.append($emptySuitt);
     $therdLine.append($selectedSuiteChart)
 
+    // $firstLine.css("background-color", 'khaki')
+    // $secondLine.css("background-color", 'rosybrown')
+    // $therdLine.css("background-color", 'beige')
+
     $container.append($firstLine);
+    let $secDev = $("<div />");
     $table.append($secondLine);
     $table.append($therdLine);
-    $container.append($table);
+    $secDev.append($table);
+    $container.append($secDev);
 
     let cakeGraphId = SumSuites.length - 1;
     BuildStackedColumnChart(SumSuites, $spanMainChart, $spanDynamiclPie, $spanEmptySuites, $selectedSuiteChart);
