@@ -3,7 +3,7 @@ import Controls = require("VSS/Controls");
 import Services = require("Charts/Services");
 import TestRestClient = require("TFS/TestManagement/RestClient");
 import WorkItemManagment = require("TFS/WorkItemTracking/RestClient");
-import { TestPlan, TestSuite, TestPoint, ResultDetails } from "TFS/TestManagement/Contracts";
+import { TestPlan, TestSuite, TestPoint } from "TFS/TestManagement/Contracts";
 import { CommonChartOptions, ChartTypesConstants, ClickEvent, LegendOptions, TooltipOptions } from "Charts/Contracts";
 import { CsvDataService } from "./CsvHelper";
 import { GetLastTimeValue, SetValue } from "./storageHelper";
@@ -203,7 +203,7 @@ async function BuildTableTestGrid(projectName: string, testPlanId: number, selec
     planInfo.empty();
     let selectedPlan = await testClient.getPlanById(projectName, testPlanId);
     ShowPlaneInfos(selectedPlan, testPlanId, planInfo, projectName);
-    let palneFullInfo: Array<TestSuiteModel> = await GetTestPlanSuites(selectedPlan, testPlanId, planInfo, projectName);
+    let palneFullInfo: Array<TestSuiteModel> = await GetTestPlanSuites(testPlanId, projectName);//selectedPlan,planInfo
     palnInfoExcell = palneFullInfo;
     let rootTestCase: TestSuiteModel = ReArangeSuiteList(palneFullInfo);
     BuildTreeView(rootTestCase);
@@ -229,7 +229,7 @@ function ShowPlaneInfos(selectedPlan: TestPlan, testPlanId: number, planInfo: JQ
     table.append(tr);
     planInfo.append(table);
 }
-async function GetTestPlanSuites(selectedPlan: TestPlan, testPlanId: number, planInfo: JQuery, projectName: string) {
+async function GetTestPlanSuites(testPlanId: number, projectName: string) {//selectedPlan: TestPlan,planInfo: JQuery,
     let suites = await testClient.getTestSuitesForPlan(projectName, testPlanId);
     if (suites.length > 0) {
         return await GetTestSuites(suites, projectName, testPlanId);
@@ -584,7 +584,7 @@ function BuildGraphs(SumSuites: Array<SumeSuite>) {
     $container.empty();
 
     $container.append($radioButtons);
-    
+
     let $spanMainChart = $("<span />");
     let $firstLine = $("<div />");
     $firstLine.append($spanMainChart);
@@ -605,7 +605,7 @@ function BuildGraphs(SumSuites: Array<SumeSuite>) {
     // $secondLine.append($totalLabell);
     // $secondLine.append($selectedPieLabell);
     // $secondLine.append($emptySuiteLabell);
-    
+
     // let $spanTotalPie = $("<span />");
     // let $spanDynamiclPie = $("<span />");
     // let $spanEmptySuites = $("<span />");
@@ -616,7 +616,7 @@ function BuildGraphs(SumSuites: Array<SumeSuite>) {
     // let $totalSuitesPie = $("<div />");
     // let $selectedSuitePie = $("<div />"); 
     // let $emptySuitt = $("<div />");
- 
+
     // end test
 
     // this stop //
@@ -630,7 +630,6 @@ function BuildGraphs(SumSuites: Array<SumeSuite>) {
     $therdLine.addClass("scroller");
     $therdLine.css("vertical-align", "top");
 
-
     let $selectedPieLabell = $("<td />");
     $selectedPieLabell.text("Selected Suite");
     $selectedPieLabell.addClass("graphLabels");
@@ -641,7 +640,6 @@ function BuildGraphs(SumSuites: Array<SumeSuite>) {
     $emptySuiteLabell.text("Empty Suites");
     $emptySuiteLabell.addClass("graphLabels");
     let $selectedChart = $("<td />");
-    //$selectedChart.text("Selectd Suite Chart");
     $selectedChart.addClass("graphLabels");
     $secondLine.append($totalLabell);
     $secondLine.append($selectedPieLabell);
@@ -656,7 +654,6 @@ function BuildGraphs(SumSuites: Array<SumeSuite>) {
     let $selectedSuitePie = $("<td />");
     let $selectedSuiteChart = $("<td />");
     let $emptySuitt = $("<td />");
-    //$emptySuitt.css("vertical-align", "text-top");
     $totalSuitesPie.append($spanTotalPie);
     $selectedSuitePie.append($spanDynamiclPie);
     $emptySuitt.append($spanEmptySuites);
@@ -666,12 +663,13 @@ function BuildGraphs(SumSuites: Array<SumeSuite>) {
     $therdLine.append($emptySuitt);
     $therdLine.append($selectedSuiteChart)
 
-    
     let $secDev = $("<div />");
     $table.append($secondLine);
     $table.append($therdLine);
     $secDev.append($table);
     $container.append($secDev);
+
+    //
 
     let cakeGraphId = SumSuites.length - 1;
     BuildStackedColumnChart(SumSuites, $spanMainChart, $spanDynamiclPie, $spanEmptySuites, $selectedSuiteChart);
@@ -822,4 +820,3 @@ function BuildPieChart(selectedSuite: SumeSuite, $rightGraph: JQuery, title: str
 var id = VSS.getContribution().id;
 VSS.register(id, Init_Page);
 Init_Page();
-
