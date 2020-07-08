@@ -6,7 +6,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Services", "TFS/TestManagement/RestClient", "TFS/WorkItemTracking/RestClient", "TFS/TestManagement/Contracts", "Charts/Contracts", "./CsvHelper", "./storageHelper"], function (require, exports, Grids, Controls, Services, TestRestClient, WorkItemManagment, Contracts_1, Contracts_2, CsvHelper_1, storageHelper_1) {
+define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Services", "TFS/TestManagement/RestClient", "TFS/WorkItemTracking/RestClient", "Charts/Contracts", "./CsvHelper", "./storageHelper", "TFS/WorkItemTracking/Contracts"], function (require, exports, Grids, Controls, Services, TestRestClient, WorkItemManagment, Contracts_1, CsvHelper_1, storageHelper_1, Contracts_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     let testClient = TestRestClient.getClient();
@@ -228,13 +228,13 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
             let TestPointList = new Array();
             let testPoints = yield testClient.getPoints(projectName, testPlanId, suiteId);
             for (const testPoint of testPoints) {
-                let testPointModel = yield GetTestRunsResults(projectName, testPoint);
+                let testPointModel = yield GetTestRunsResults(projectName, testPoint, testPlanId, suiteId);
                 TestPointList.push(testPointModel);
             }
             return TestPointList;
         });
     }
-    function GetTestRunsResults(projectName, testPoint) {
+    function GetTestRunsResults(projectName, testPoint, testPlanId, suiteId) {
         return __awaiter(this, void 0, void 0, function* () {
             let incomplite = 0;
             let notApplicable = 0;
@@ -243,19 +243,36 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
             let postProcess = "";
             let stepFaild = "";
             let outcome = testPoint.outcome;
-            let TestCaseWI = yield WIClient.getWorkItem(+testPoint.testCase.id);
+            let TestCaseWI = yield WIClient.getWorkItem(+testPoint.testCase.id, null, null, Contracts_2.WorkItemExpand.All);
             let testName = TestCaseWI.fields["System.Title"].toString();
             if (testPoint.lastTestRun.id != "0") {
                 let run = yield testClient.getTestRunById(projectName, +testPoint.lastTestRun.id);
-                let testResult = yield testClient.getTestResultById(projectName, run.id, +testPoint.lastResult.id, Contracts_1.ResultDetails.Iterations);
+                let testResult2 = yield testClient.getTestIterations(projectName, run.id, +testPoint.lastResult.id, true);
+                testResult2.forEach(result => {
+                    if (result.outcome == undefined) {
+                        outcome = "In Progress";
+                    }
+                    let actionResolt = result.actionResults.pop();
+                    if (actionResolt != undefined && actionResolt.outcome == "Failed") {
+                        let steps = $.parseXML(TestCaseWI.fields["Microsoft.VSTS.TCM.Steps"]).children[0];
+                        let xx;
+                        if (steps != null && steps != undefined) {
+                            for (var i = 0; i < steps.childNodes.length; i++) {
+                                let y = +actionResolt.actionPath;
+                                let x = +steps.children[i].id;
+                                if (x == y) {
+                                    xx = steps.children[i].textContent;
+                                }
+                            }
+                        }
+                        stepFaild = (+actionResolt.actionPath) + ";" + xx + ";" + actionResolt.comment + ";" + actionResolt.errorMessage;
+                    }
+                });
                 incomplite = run.incompleteTests;
                 notApplicable = run.notApplicableTests;
                 passed = run.passedTests;
                 total = run.totalTests;
                 postProcess = run.postProcessState;
-                if (testResult.outcome == undefined) {
-                    outcome = "In Progress";
-                }
             }
             if (outcome == "Unspecified") {
                 outcome = "Not Run";
@@ -355,20 +372,14 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
         tr.append(TextView(point.testCaseName, 2));
         tr.append(TextView("Outcome:", 1));
         tr.append(TextView(point.outCome, 2));
+        tr.append(TextView("Failed step:", 1));
+        tr.append(TextView(point.FaildStep, 2));
         tr.append(TextView("Assigned To:", 1));
         tr.append(TextView(point.assignedTo, 2));
         tr.append(TextView("Configuration:", 1));
         tr.append(TextView(point.configuration, 2));
         tr.append(TextView("Failure Type:", 1));
         tr.append(TextView(point.failureType, 2));
-        tr.append(TextView("Passed:", 1));
-        tr.append(TextView(point.passedTests, 2));
-        tr.append(TextView("Incomplit:", 1));
-        tr.append(TextView(point.incompliteTests, 2));
-        tr.append(TextView("Not Applicable:", 1));
-        tr.append(TextView(point.notApplicableTests, 2));
-        tr.append(TextView("Total:", 1));
-        tr.append(TextView(point.totalTests, 2));
         tr.append(TextView("Type:", 1));
         tr.append(TextView(point.testCaseType, 2));
         tr.append(TextView("Comment:", 1));
@@ -643,7 +654,7 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
         };
         let chartStackedColumnOptions = {
             "tooltip": toolTipOption,
-            "chartType": Contracts_2.ChartTypesConstants.StackedColumn,
+            "chartType": Contracts_1.ChartTypesConstants.StackedColumn,
             "xAxis": {
                 canZoom: true,
                 suppressLabelTruncation: true,
@@ -692,7 +703,7 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
             "legend": legend,
             suppressAnimation: true,
             hostOptions: { height: 300, width: 300 },
-            "chartType": Contracts_2.ChartTypesConstants.Pie,
+            "chartType": Contracts_1.ChartTypesConstants.Pie,
             "xAxis": {
                 title: title,
                 canZoom: true,

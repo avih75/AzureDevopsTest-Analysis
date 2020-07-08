@@ -7,7 +7,7 @@ import { TestPlan, TestSuite, TestPoint, ResultDetails } from "TFS/TestManagemen
 import { CommonChartOptions, ChartTypesConstants, ClickEvent, LegendOptions, TooltipOptions } from "Charts/Contracts";
 import { CsvDataService } from "./CsvHelper";
 import { GetLastTimeValue, SetValue } from "./storageHelper";
-import { authTokenManager } from "VSS/Authentication/Services";
+import { WorkItemExpand } from "TFS/WorkItemTracking/Contracts";
 let testClient = TestRestClient.getClient();
 let WIClient: WorkItemManagment.WorkItemTrackingHttpClient4_1 = WorkItemManagment.getClient();
 let SumSuitesforExecell: Array<SumeSuite>;
@@ -267,12 +267,12 @@ async function GetTestPoints(projectName: string, testPlanId: number, suiteId: n
     let TestPointList = new Array<TestPointModel>();
     let testPoints = await testClient.getPoints(projectName, testPlanId, suiteId);
     for (const testPoint of testPoints) {
-        let testPointModel: TestPointModel = await GetTestRunsResults(projectName, testPoint);
+        let testPointModel: TestPointModel = await GetTestRunsResults(projectName, testPoint, testPlanId, suiteId);
         TestPointList.push(testPointModel);
     }
     return TestPointList;
 }
-async function GetTestRunsResults(projectName: string, testPoint: TestPoint) {
+async function GetTestRunsResults(projectName: string, testPoint: TestPoint, testPlanId: number, suiteId: number) {
     let incomplite: number = 0;
     let notApplicable: number = 0;
     let passed: number = 0;
@@ -280,33 +280,36 @@ async function GetTestRunsResults(projectName: string, testPoint: TestPoint) {
     let postProcess: string = "";
     let stepFaild: string = "";
     let outcome: string = testPoint.outcome;
-    let TestCaseWI = await WIClient.getWorkItem(+testPoint.testCase.id);
+    let TestCaseWI = await WIClient.getWorkItem(+testPoint.testCase.id, null, null, WorkItemExpand.All);
     let testName = TestCaseWI.fields["System.Title"].toString();
     if (testPoint.lastTestRun.id != "0") {
         let run = await testClient.getTestRunById(projectName, +testPoint.lastTestRun.id);
-        let testResult = await testClient.getTestResultById(projectName, run.id, +testPoint.lastResult.id, ResultDetails.Iterations)
-        // if (testResult.iterationDetails.length > 0) {
-        //     // try get the action that failed the run
-        //     try {
-        //         let actionResults = await testClient.getActionResults(projectName, run.id, testResult.id, testResult.iterationDetails.pop().id)
-        //         actionResults.forEach(action => {
-        //             if (action.outcome == "Failed")
-        //                 action.actionPath
-        //             stepFaild += action.errorMessage;
-        //         });
-        //     }
-        //     catch{
-
-        //     }
-        // }
+        let testResult2 = await testClient.getTestIterations(projectName, run.id, +testPoint.lastResult.id, true);
+        testResult2.forEach(result => {
+            if (result.outcome == undefined) {
+                outcome = "In Progress";
+            }
+            let actionResolt = result.actionResults.pop();
+            if (actionResolt != undefined && actionResolt.outcome == "Failed") {
+                let steps: Element = $.parseXML(TestCaseWI.fields["Microsoft.VSTS.TCM.Steps"]).children[0];
+                let xx: string;
+                if (steps != null && steps != undefined) {
+                    for (var i = 0; i < steps.childNodes.length; i++) {
+                        let y = +actionResolt.actionPath
+                        let x = +steps.children[i].id;
+                        if (x == y) {
+                            xx = steps.children[i].textContent;
+                        }
+                    }
+                }
+                stepFaild = (+actionResolt.actionPath) + ";" + xx + ";" + actionResolt.comment + ";" + actionResolt.errorMessage
+            }
+        })
         incomplite = run.incompleteTests;
         notApplicable = run.notApplicableTests;
         passed = run.passedTests;
         total = run.totalTests;
         postProcess = run.postProcessState;
-        if (testResult.outcome == undefined) {
-            outcome = "In Progress";
-        }
     }
     if (outcome == "Unspecified") {
         outcome = "Not Run";
@@ -405,20 +408,22 @@ function BuildTreeTestView(point: TestPointModel) {
     tr.append(TextView(point.testCaseName, 2));
     tr.append(TextView("Outcome:", 1));
     tr.append(TextView(point.outCome, 2));
+    tr.append(TextView("Failed step:", 1));
+    tr.append(TextView(point.FaildStep, 2));
     tr.append(TextView("Assigned To:", 1));
     tr.append(TextView(point.assignedTo, 2));
     tr.append(TextView("Configuration:", 1));
     tr.append(TextView(point.configuration, 2));
     tr.append(TextView("Failure Type:", 1));
     tr.append(TextView(point.failureType, 2));
-    tr.append(TextView("Passed:", 1));
-    tr.append(TextView(point.passedTests, 2));
-    tr.append(TextView("Incomplit:", 1));
-    tr.append(TextView(point.incompliteTests, 2));
-    tr.append(TextView("Not Applicable:", 1));
-    tr.append(TextView(point.notApplicableTests, 2));
-    tr.append(TextView("Total:", 1));
-    tr.append(TextView(point.totalTests, 2));
+    // tr.append(TextView("Passed:", 1));
+    // tr.append(TextView(point.passedTests, 2));
+    // tr.append(TextView("Incomplit:", 1));
+    // tr.append(TextView(point.incompliteTests, 2));
+    // tr.append(TextView("Not Applicable:", 1));
+    // tr.append(TextView(point.notApplicableTests, 2));
+    // tr.append(TextView("Total:", 1));
+    // tr.append(TextView(point.totalTests, 2));
     tr.append(TextView("Type:", 1));
     tr.append(TextView(point.testCaseType, 2));
     tr.append(TextView("Comment:", 1));

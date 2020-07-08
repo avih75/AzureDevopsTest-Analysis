@@ -1,9 +1,9 @@
 {
     "manifestVersion": 1,
     "id": "Test-Analysis",
-    "version": "1.0.352",
+    "version": "1.0.381",
     "name": "Solution to Analizes your Tests",
-    "description": "A Simple Test Plan Analysis.",
+    "description": "Interactive Test Plan Analysis.",
     "publisher": "AviHadad",
     "categories": [
         "Test"
@@ -15,7 +15,6 @@
     "icons": {
         "default": "images/logo.png"
     },
-    "demands": ["contribution/ms.vss-dashboards-web.widget-sdk-version-2", "contribution/ms.vss-web.charts-service"],
     "contributions": [{
         "id": "Test_Analysis",
         "type": "ms.vss-web.hub",
