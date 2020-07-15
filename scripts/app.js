@@ -6,13 +6,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Services", "TFS/TestManagement/RestClient", "TFS/WorkItemTracking/RestClient", "Charts/Contracts", "./CsvHelper", "./storageHelper", "TFS/WorkItemTracking/Contracts"], function (require, exports, Grids, Controls, Services, TestRestClient, WorkItemManagment, Contracts_1, CsvHelper_1, storageHelper_1, Contracts_2) {
+define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Services", "TFS/TestManagement/RestClient", "TFS/WorkItemTracking/RestClient", "Charts/Contracts", "./CsvHelper", "./storageHelper", "TFS/WorkItemTracking/Contracts", "q"], function (require, exports, Grids, Controls, Services, TestRestClient, WorkItemManagment, Contracts_1, CsvHelper_1, storageHelper_1, Contracts_2, q_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     let testClient = TestRestClient.getClient();
     let WIClient = WorkItemManagment.getClient();
     let SumSuitesforExecell;
-    let palnInfoExcell;
+    let palnInfoExcell = new Array();
     const csvFileName = "Export.csv";
     let selectedId = 0;
     class TestPointModel {
@@ -46,8 +46,8 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
                 let selectedPlan = $("#selectPlan").children("option:selected").val();
                 let projectName = VSS.getWebContext().project.name;
                 let selectPlan = $("#selectPlan");
-                BuildTableTestGrid(projectName, selectedPlan, selectPlan);
                 BuildTestsSum(projectName, selectedPlan);
+                BuildTableTestGrid(projectName, selectedPlan, selectPlan);
             });
             $("#graph-container").on("change", "#deep", function () {
                 let deep = $('#deep').is(":checked");
@@ -116,8 +116,9 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
                     selectPlan.attr("disabled", "true");
                     let selectedPlan = $(this).children("option:selected").val();
                     storageHelper_1.SetValue(webContext.user.name + "_" + webContext.project.name, selectedPlan);
-                    yield BuildTableTestGrid(projectName, selectedPlan, selectPlan);
-                    yield BuildTestsSum(projectName, selectedPlan);
+                    BuildTestsSum(projectName, selectedPlan);
+                    BuildTableTestGrid(projectName, selectedPlan, selectPlan);
+                    yield q_1.all;
                     selectPlan.removeAttr("disabled");
                 });
             });
@@ -142,8 +143,9 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
             $("#loading").hide();
             selectPlan.val(firstPlan);
             selectPlan.show();
-            yield BuildTableTestGrid(projectName, firstPlan, selectPlan);
-            yield BuildTestsSum(projectName, firstPlan);
+            BuildTestsSum(projectName, firstPlan);
+            BuildTableTestGrid(projectName, firstPlan, selectPlan);
+            yield q_1.all;
             selectPlan.removeAttr("disabled");
         });
     }
@@ -158,7 +160,7 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
             planInfo.empty();
             let selectedPlan = yield testClient.getPlanById(projectName, testPlanId);
             ShowPlaneInfos(selectedPlan, testPlanId, planInfo, projectName);
-            let palneFullInfo = yield GetTestPlanSuites(selectedPlan, testPlanId, planInfo, projectName);
+            let palneFullInfo = yield GetTestPlanSuites(testPlanId, projectName);
             palnInfoExcell = palneFullInfo;
             let rootTestCase = ReArangeSuiteList(palneFullInfo);
             BuildTreeView(rootTestCase);
@@ -185,7 +187,7 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
         table.append(tr);
         planInfo.append(table);
     }
-    function GetTestPlanSuites(selectedPlan, testPlanId, planInfo, projectName) {
+    function GetTestPlanSuites(testPlanId, projectName) {
         return __awaiter(this, void 0, void 0, function* () {
             let suites = yield testClient.getTestSuitesForPlan(projectName, testPlanId);
             if (suites.length > 0) {

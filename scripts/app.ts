@@ -8,10 +8,11 @@ import { CommonChartOptions, ChartTypesConstants, ClickEvent, LegendOptions, Too
 import { CsvDataService } from "./CsvHelper";
 import { GetLastTimeValue, SetValue } from "./storageHelper";
 import { WorkItemExpand } from "TFS/WorkItemTracking/Contracts";
+import { all } from "q";
 let testClient = TestRestClient.getClient();
 let WIClient: WorkItemManagment.WorkItemTrackingHttpClient4_1 = WorkItemManagment.getClient();
 let SumSuitesforExecell: Array<SumeSuite>;
-let palnInfoExcell: Array<TestSuiteModel>;
+let palnInfoExcell: Array<TestSuiteModel> = new Array<TestSuiteModel>();
 const csvFileName: string = "Export.csv";
 let selectedId: number = 0;
 class TestPointModel {
@@ -91,8 +92,8 @@ async function Init_Page(): Promise<void> {
         let selectedPlan = $("#selectPlan").children("option:selected").val();
         let projectName = VSS.getWebContext().project.name;
         let selectPlan = $("#selectPlan");
-        BuildTableTestGrid(projectName, selectedPlan, selectPlan);
         BuildTestsSum(projectName, selectedPlan);
+        BuildTableTestGrid(projectName, selectedPlan, selectPlan);
     });
     $("#graph-container").on("change", "#deep", function () {
         let deep = $('#deep').is(":checked");
@@ -158,8 +159,11 @@ async function BuildSelect(projectName: string, selectPlan: JQuery) {
         selectPlan.attr("disabled", "true");
         let selectedPlan = $(this).children("option:selected").val();
         SetValue(webContext.user.name + "_" + webContext.project.name, selectedPlan);
-        await BuildTableTestGrid(projectName, selectedPlan, selectPlan);
-        await BuildTestsSum(projectName, selectedPlan);
+        //await BuildTestsSum(projectName, selectedPlan);
+        BuildTestsSum(projectName, selectedPlan);
+        //await BuildTableTestGrid(projectName, selectedPlan, selectPlan);
+        BuildTableTestGrid(projectName, selectedPlan, selectPlan);
+        await all;
         selectPlan.removeAttr("disabled");
     });
     testClient._setInitializationPromise(testClient.authTokenManager.getAuthToken());
@@ -186,8 +190,11 @@ async function BuildSelect(projectName: string, selectPlan: JQuery) {
     $("#loading").hide();
     selectPlan.val(firstPlan);
     selectPlan.show();
-    await BuildTableTestGrid(projectName, firstPlan, selectPlan);
-    await BuildTestsSum(projectName, firstPlan);
+    //await BuildTestsSum(projectName, firstPlan);
+    BuildTestsSum(projectName, firstPlan);
+    //await BuildTableTestGrid(projectName, firstPlan, selectPlan);
+    BuildTableTestGrid(projectName, firstPlan, selectPlan);
+    await all;
     // })
     selectPlan.removeAttr("disabled");
 }
