@@ -6,13 +6,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Services", "TFS/TestManagement/RestClient", "TFS/WorkItemTracking/RestClient", "Charts/Contracts", "./CsvHelper", "./storageHelper", "TFS/WorkItemTracking/Contracts"], function (require, exports, Grids, Controls, Services, TestRestClient, WorkItemManagment, Contracts_1, CsvHelper_1, storageHelper_1, Contracts_2) {
+define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Services", "TFS/TestManagement/RestClient", "Charts/Contracts", "./CsvHelper", "./storageHelper", "TFS/WorkItemTracking/Contracts", "TFS/WorkItemTracking/RestClient"], function (require, exports, Grids, Controls, Services, TestRestClient, Contracts_1, CsvHelper_1, storageHelper_1, Contracts_2, WorkItemManagment) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    let testClient = TestRestClient.getClient();
     let WIClient = WorkItemManagment.getClient();
+    let testClient = TestRestClient.getClient();
     let SumSuitesforExecell;
-    let palnInfoExcell;
+    let palnInfoExcell = new Array();
     const csvFileName = "Export.csv";
     let selectedId = 0;
     class TestPointModel {
@@ -46,8 +46,10 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
                 let selectedPlan = $("#selectPlan").children("option:selected").val();
                 let projectName = VSS.getWebContext().project.name;
                 let selectPlan = $("#selectPlan");
-                BuildTableTestGrid(projectName, selectedPlan, selectPlan);
                 BuildTestsSum(projectName, selectedPlan);
+                BuildTableTestGrid(projectName, selectedPlan, selectPlan).then(() => {
+                    selectPlan.removeAttr("disabled");
+                });
             });
             $("#graph-container").on("change", "#deep", function () {
                 let deep = $('#deep').is(":checked");
@@ -116,35 +118,38 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
                     selectPlan.attr("disabled", "true");
                     let selectedPlan = $(this).children("option:selected").val();
                     storageHelper_1.SetValue(webContext.user.name + "_" + webContext.project.name, selectedPlan);
-                    yield BuildTableTestGrid(projectName, selectedPlan, selectPlan);
-                    yield BuildTestsSum(projectName, selectedPlan);
-                    selectPlan.removeAttr("disabled");
+                    BuildTestsSum(projectName, selectedPlan);
+                    BuildTableTestGrid(projectName, selectedPlan, selectPlan).then(() => {
+                        selectPlan.removeAttr("disabled");
+                    });
                 });
             });
             testClient._setInitializationPromise(testClient.authTokenManager.getAuthToken());
             WIClient._setInitializationPromise(testClient.authTokenManager.getAuthToken());
-            let plans = yield testClient.getPlans(projectName);
-            let flag = false;
-            let firstPlan = 0;
-            plans.forEach(plan => {
-                selectPlan.append(new Option(plan.name, plan.id.toString()));
-                if (plan.id == selectedId)
-                    flag = true;
-                if (firstPlan == 0)
-                    firstPlan = plan.id;
+            testClient.getPlans(projectName).then((plans) => {
+                let flag = false;
+                let firstPlan = 0;
+                plans.forEach(plan => {
+                    selectPlan.append(new Option(plan.name, plan.id.toString()));
+                    if (plan.id == selectedId)
+                        flag = true;
+                    if (firstPlan == 0)
+                        firstPlan = plan.id;
+                });
+                if (flag) {
+                    firstPlan = selectedId;
+                }
+                else {
+                    storageHelper_1.SetValue(webContext.user.name + "_" + webContext.project.name, firstPlan);
+                }
+                $("#loading").hide();
+                selectPlan.val(firstPlan);
+                selectPlan.show();
+                BuildTestsSum(projectName, firstPlan);
+                BuildTableTestGrid(projectName, firstPlan, selectPlan).then(() => {
+                    selectPlan.removeAttr("disabled");
+                });
             });
-            if (flag) {
-                firstPlan = selectedId;
-            }
-            else {
-                storageHelper_1.SetValue(webContext.user.name + "_" + webContext.project.name, firstPlan);
-            }
-            $("#loading").hide();
-            selectPlan.val(firstPlan);
-            selectPlan.show();
-            yield BuildTableTestGrid(projectName, firstPlan, selectPlan);
-            yield BuildTestsSum(projectName, firstPlan);
-            selectPlan.removeAttr("disabled");
         });
     }
     function BuildTableTestGrid(projectName, testPlanId, selectPlan) {
@@ -156,15 +161,17 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
             let planInfo = $("#PlanInfos");
             container.empty();
             planInfo.empty();
-            let selectedPlan = yield testClient.getPlanById(projectName, testPlanId);
-            ShowPlaneInfos(selectedPlan, testPlanId, planInfo, projectName);
-            let palneFullInfo = yield GetTestPlanSuites(selectedPlan, testPlanId, planInfo, projectName);
-            palnInfoExcell = palneFullInfo;
-            let rootTestCase = ReArangeSuiteList(palneFullInfo);
-            BuildTreeView(rootTestCase);
-            $("#mainFunction").removeAttr("disabled");
-            selectPlan.removeAttr("disabled");
-            $("#analyzingGif").hide();
+            testClient.getPlanById(projectName, testPlanId).then((selectedPlan) => {
+                ShowPlaneInfos(selectedPlan, testPlanId, planInfo, projectName);
+            });
+            GetTestPlanSuites(testPlanId, projectName).then((palneFullInfo) => {
+                palnInfoExcell = palneFullInfo;
+                let rootTestCase = ReArangeSuiteList(palneFullInfo);
+                BuildTreeView(rootTestCase);
+                $("#mainFunction").removeAttr("disabled");
+                selectPlan.removeAttr("disabled");
+                $("#analyzingGif").hide();
+            });
         });
     }
     function ShowPlaneInfos(selectedPlan, testPlanId, planInfo, projectName) {
@@ -185,7 +192,7 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
         table.append(tr);
         planInfo.append(table);
     }
-    function GetTestPlanSuites(selectedPlan, testPlanId, planInfo, projectName) {
+    function GetTestPlanSuites(testPlanId, projectName) {
         return __awaiter(this, void 0, void 0, function* () {
             let suites = yield testClient.getTestSuitesForPlan(projectName, testPlanId);
             if (suites.length > 0) {
@@ -229,13 +236,13 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
             let TestPointList = new Array();
             let testPoints = yield testClient.getPoints(projectName, testPlanId, suiteId);
             for (const testPoint of testPoints) {
-                let testPointModel = yield GetTestRunsResults(projectName, testPoint, testPlanId, suiteId);
+                let testPointModel = yield GetTestRunsResults(projectName, testPoint);
                 TestPointList.push(testPointModel);
             }
             return TestPointList;
         });
     }
-    function GetTestRunsResults(projectName, testPoint, testPlanId, suiteId) {
+    function GetTestRunsResults(projectName, testPoint) {
         return __awaiter(this, void 0, void 0, function* () {
             let incomplite = 0;
             let notApplicable = 0;
@@ -256,17 +263,17 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
                     let actionResolt = result.actionResults.pop();
                     if (actionResolt != undefined && actionResolt.outcome == "Failed") {
                         let steps = $.parseXML(TestCaseWI.fields["Microsoft.VSTS.TCM.Steps"]).children[0];
-                        let xx;
                         if (steps != null && steps != undefined) {
                             for (var i = 0; i < steps.childNodes.length; i++) {
-                                let y = +actionResolt.actionPath;
-                                let x = +steps.children[i].id;
-                                if (x == y) {
-                                    xx = steps.children[i].textContent;
+                                if (+steps.children[i].id == +actionResolt.actionPath) {
+                                    stepFaild = steps.children[i].textContent;
+                                    +" ; " + actionResolt.comment + " ; " + actionResolt.errorMessage;
                                 }
                             }
                         }
-                        stepFaild = (+actionResolt.actionPath) + ";" + xx + ";" + actionResolt.comment + ";" + actionResolt.errorMessage;
+                        else {
+                            stepFaild = actionResolt.comment + " ; " + actionResolt.errorMessage;
+                        }
                     }
                 });
                 incomplite = run.incompleteTests;
@@ -441,7 +448,7 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
                 if (rootName == "" && suite.parent == undefined) {
                     rootName = suite.name;
                 }
-                let newSuite = yield GetSuiteSum(suite, rootName);
+                let newSuite = yield GetSuiteSum(suite);
                 totalTests.Blocked += newSuite.Blocked;
                 totalTests.Failed += newSuite.Failed;
                 totalTests.InProgress += newSuite.InProgress;
@@ -460,7 +467,7 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
             BuildGraphs(SumSuites);
         });
     }
-    function GetSuiteSum(suite, rootName) {
+    function GetSuiteSum(suite) {
         return __awaiter(this, void 0, void 0, function* () {
             let suiteSum = new SumeSuite();
             palnInfoExcell.forEach(element => {
@@ -596,11 +603,11 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
         $secDev.append($table);
         $container.append($secDev);
         let cakeGraphId = SumSuites.length - 1;
-        BuildStackedColumnChart(SumSuites, $spanMainChart, $spanDynamiclPie, $spanEmptySuites, $selectedSuiteChart);
+        BuildStackedColumnChart(SumSuites, $spanMainChart, $spanDynamiclPie, $spanEmptySuites);
         BuildPieChart(SumSuites[0], $spanDynamiclPie, "Total Suits");
         BuildPieChart(SumSuites[cakeGraphId], $spanTotalPie, "Selected Suits");
     }
-    function BuildStackedColumnChart(SumSuites, $graphSpan, $dinamicPieSpan, $emptySuite, $selectedChart) {
+    function BuildStackedColumnChart(SumSuites, $graphSpan, $dinamicPieSpan, $emptySuite) {
         let deep = $('#deep').is(":checked");
         let howDeep = $("#level").val();
         let Paused = [];

@@ -12,7 +12,7 @@ import { all } from "q";
 let WIClient: WorkItemManagment.WorkItemTrackingHttpClient4_1 = WorkItemManagment.getClient();
 let testClient = TestRestClient.getClient();
 let SumSuitesforExecell: Array<SumeSuite>;
-let palnInfoExcell: Array<TestSuiteModel>;
+let palnInfoExcell: Array<TestSuiteModel> = new Array<TestSuiteModel>();
 const csvFileName: string = "Export.csv";
 let selectedId: number = 0;
 class TestPointModel {
@@ -92,8 +92,10 @@ async function Init_Page(): Promise<void> {
         let selectedPlan = $("#selectPlan").children("option:selected").val();
         let projectName = VSS.getWebContext().project.name;
         let selectPlan = $("#selectPlan");
-        BuildTableTestGrid(projectName, selectedPlan, selectPlan);
         BuildTestsSum(projectName, selectedPlan);
+        BuildTableTestGrid(projectName, selectedPlan, selectPlan).then(() => {
+            selectPlan.removeAttr("disabled");
+        })
     });
     $("#graph-container").on("change", "#deep", function () {
         let deep = $('#deep').is(":checked");
@@ -159,44 +161,37 @@ async function BuildSelect(projectName: string, selectPlan: JQuery) {
         selectPlan.attr("disabled", "true");
         let selectedPlan = $(this).children("option:selected").val();
         SetValue(webContext.user.name + "_" + webContext.project.name, selectedPlan);
-        // await BuildTableTestGrid(projectName, selectedPlan, selectPlan);
-        // await BuildTestsSum(projectName, selectedPlan);
-        BuildTableTestGrid(projectName, selectedPlan, selectPlan);
         BuildTestsSum(projectName, selectedPlan);
-        await all;
-        selectPlan.removeAttr("disabled");
+        BuildTableTestGrid(projectName, selectedPlan, selectPlan).then(() => {
+            selectPlan.removeAttr("disabled");
+        });
     });
     testClient._setInitializationPromise(testClient.authTokenManager.getAuthToken());
-    WIClient._setInitializationPromise(testClient.authTokenManager.getAuthToken());
-    let plans: TestPlan[] = await testClient.getPlans(projectName);
-    /////////
-    // testClient.getPlans(projectName).then(async (plans) => {
-    //let firstPlan: number = 0;
-    let flag: boolean = false;
-    let firstPlan = 0;
-    plans.forEach(plan => {
-        selectPlan.append(new Option(plan.name, plan.id.toString()));
-        if (plan.id == selectedId)
-            flag = true;
-        if (firstPlan == 0)
-            firstPlan = plan.id;
-    });
-    if (flag) {
-        firstPlan = selectedId;
-    }
-    else {
-        SetValue(webContext.user.name + "_" + webContext.project.name, firstPlan);
-    }
-    $("#loading").hide();
-    selectPlan.val(firstPlan);
-    selectPlan.show();
-    // await BuildTableTestGrid(projectName, firstPlan, selectPlan);
-    // await BuildTestsSum(projectName, firstPlan);
-    BuildTableTestGrid(projectName, firstPlan, selectPlan);
-    BuildTestsSum(projectName, firstPlan);
-    await all;
-    // })
-    selectPlan.removeAttr("disabled");
+    WIClient._setInitializationPromise(testClient.authTokenManager.getAuthToken()); 
+    testClient.getPlans(projectName).then((plans: TestPlan[]) => { 
+        let flag: boolean = false;
+        let firstPlan = 0;
+        plans.forEach(plan => {
+            selectPlan.append(new Option(plan.name, plan.id.toString()));
+            if (plan.id == selectedId)
+                flag = true;
+            if (firstPlan == 0)
+                firstPlan = plan.id;
+        });
+        if (flag) {
+            firstPlan = selectedId;
+        }
+        else {
+            SetValue(webContext.user.name + "_" + webContext.project.name, firstPlan);
+        }
+        $("#loading").hide();
+        selectPlan.val(firstPlan);
+        selectPlan.show();
+        BuildTestsSum(projectName, firstPlan);
+        BuildTableTestGrid(projectName, firstPlan, selectPlan).then(() => {
+            selectPlan.removeAttr("disabled");
+        }) 
+    })
 }
 async function BuildTableTestGrid(projectName: string, testPlanId: number, selectPlan: JQuery): Promise<void> {
     // turn off all view
@@ -208,19 +203,10 @@ async function BuildTableTestGrid(projectName: string, testPlanId: number, selec
     let planInfo = $("#PlanInfos");
     container.empty();
     planInfo.empty();
-    // let selectedPlan = await testClient.getPlanById(projectName, testPlanId);
-    // ShowPlaneInfos(selectedPlan, testPlanId, planInfo, projectName);
-    testClient.getPlanById(projectName, testPlanId).then((selectedPlan)=>{
+    testClient.getPlanById(projectName, testPlanId).then((selectedPlan) => {
         ShowPlaneInfos(selectedPlan, testPlanId, planInfo, projectName);
     })
-    // let palneFullInfo: Array<TestSuiteModel> = await GetTestPlanSuites(testPlanId, projectName); 
-    // palnInfoExcell = palneFullInfo;
-    // let rootTestCase: TestSuiteModel = ReArangeSuiteList(palneFullInfo);
-    // BuildTreeView(rootTestCase);
-    // $("#mainFunction").removeAttr("disabled");
-    // selectPlan.removeAttr("disabled");
-    // $("#analyzingGif").hide();
-    GetTestPlanSuites(testPlanId, projectName).then((palneFullInfo)=>{
+    GetTestPlanSuites(testPlanId, projectName).then((palneFullInfo) => {
         palnInfoExcell = palneFullInfo;
         let rootTestCase: TestSuiteModel = ReArangeSuiteList(palneFullInfo);
         BuildTreeView(rootTestCase);
@@ -247,7 +233,7 @@ function ShowPlaneInfos(selectedPlan: TestPlan, testPlanId: number, planInfo: JQ
     table.append(tr);
     planInfo.append(table);
 }
-async function GetTestPlanSuites(testPlanId: number, projectName: string) { 
+async function GetTestPlanSuites(testPlanId: number, projectName: string) {
     let suites = await testClient.getTestSuitesForPlan(projectName, testPlanId);
     if (suites.length > 0) {
         return await GetTestSuites(suites, projectName, testPlanId);
@@ -310,9 +296,9 @@ async function GetTestRunsResults(projectName: string, testPoint: TestPoint) {
             if (actionResolt != undefined && actionResolt.outcome == "Failed") {
                 let steps: Element = $.parseXML(TestCaseWI.fields["Microsoft.VSTS.TCM.Steps"]).children[0];
                 if (steps != null && steps != undefined) {
-                    for (var i = 0; i < steps.childNodes.length; i++) { 
+                    for (var i = 0; i < steps.childNodes.length; i++) {
                         if (+steps.children[i].id == +actionResolt.actionPath) {
-                            stepFaild = steps.children[i].textContent; + " ; " + actionResolt.comment + " ; " + actionResolt.errorMessage;                             
+                            stepFaild = steps.children[i].textContent; + " ; " + actionResolt.comment + " ; " + actionResolt.errorMessage;
                         }
                     }
                 }
@@ -517,7 +503,7 @@ async function BuildTestsSum(projectName: string, selectedPlane: number) {
     BuildTestsView(SumSuites);
     BuildGraphs(SumSuites);
 }
-async function GetSuiteSum(suite: TestSuite) { 
+async function GetSuiteSum(suite: TestSuite) {
     let suiteSum: SumeSuite = new SumeSuite();
     palnInfoExcell.forEach(element => {
         if (element.suiteName == suite.name)
