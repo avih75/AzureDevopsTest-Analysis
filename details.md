@@ -11,7 +11,7 @@ Analyze the information with spectacular and interactive graphs
 
 # Get Test Plan Detaily Info
 
-You can see a fully details of your tests, easly explore them
+You can see a fully details of your tests and its results, easly explore them
 
 ![Layout Customization](images/B.png)
 
