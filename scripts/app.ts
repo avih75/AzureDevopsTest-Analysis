@@ -2,11 +2,11 @@ import Grids = require("VSS/Controls/Grids");
 import Controls = require("VSS/Controls");
 import Services = require("Charts/Services");
 import TestRestClient = require("TFS/TestManagement/RestClient");
-import { TestPlan, TestSuite, TestPoint } from "TFS/TestManagement/Contracts";
+import { TestPlan, TestSuite, TestPoint, TestRun } from "TFS/TestManagement/Contracts";
 import { CommonChartOptions, ChartTypesConstants, ClickEvent, LegendOptions, TooltipOptions } from "Charts/Contracts";
 import { CsvDataService } from "./CsvHelper";
 import { GetLastTimeValue, SetValue } from "./storageHelper";
-import { WorkItemExpand } from "TFS/WorkItemTracking/Contracts";
+import { WorkItemExpand, WorkItem } from "TFS/WorkItemTracking/Contracts";
 import WorkItemManagment = require("TFS/WorkItemTracking/RestClient");
 import { all } from "q";
 let WIClient: WorkItemManagment.WorkItemTrackingHttpClient4_1 = WorkItemManagment.getClient();
@@ -73,9 +73,7 @@ async function Init_Page(): Promise<void> {
     try {
         selectedId = await GetLastTimeValue(webContext.user.name + "_" + webContext.project.name);
     }
-    catch{
-
-    }
+    catch{ }
     VSS.resize();
     buildView();
     // start with graph view
@@ -92,10 +90,7 @@ async function Init_Page(): Promise<void> {
         let selectedPlan = $("#selectPlan").children("option:selected").val();
         let projectName = VSS.getWebContext().project.name;
         let selectPlan = $("#selectPlan");
-        BuildTestsSum(projectName, selectedPlan);
-        BuildTableTestGrid(projectName, selectedPlan, selectPlan).then(() => {
-            selectPlan.removeAttr("disabled");
-        })
+        RunBuilds(projectName, selectedPlan, selectPlan);
     });
     $("#graph-container").on("change", "#deep", function () {
         let deep = $('#deep').is(":checked");
@@ -107,6 +102,13 @@ async function Init_Page(): Promise<void> {
             $("#level").show();
             $("#levelText").show();
         }
+    });
+}
+function RunBuilds(projectName: string, selectedPlan: string, selectPlan: JQuery) {
+    testClient.getTestSuitesForPlan(projectName, +selectedPlan).then((suites: TestSuite[]) => {
+        ShowInfos(projectName, +selectedPlan, selectPlan);
+        BuildTestsSum(suites);// projectName, +selectedPlan
+        BuildTableTestGrid(projectName, +selectedPlan, selectPlan, suites);
     });
 }
 function buildView() {
@@ -154,21 +156,18 @@ function BuildRadioButton() {
         }
     });
 }
-async function BuildSelect(projectName: string, selectPlan: JQuery) {
+function BuildSelect(projectName: string, selectPlan: JQuery) {
     let webContext = VSS.getWebContext();
     selectPlan.attr("disabled", "true");
     selectPlan.change(async function () {
         selectPlan.attr("disabled", "true");
         let selectedPlan = $(this).children("option:selected").val();
         SetValue(webContext.user.name + "_" + webContext.project.name, selectedPlan);
-        BuildTestsSum(projectName, selectedPlan);
-        BuildTableTestGrid(projectName, selectedPlan, selectPlan).then(() => {
-            selectPlan.removeAttr("disabled");
-        });
+        RunBuilds(projectName, selectedPlan, selectPlan);
     });
     testClient._setInitializationPromise(testClient.authTokenManager.getAuthToken());
-    WIClient._setInitializationPromise(testClient.authTokenManager.getAuthToken()); 
-    testClient.getPlans(projectName).then((plans: TestPlan[]) => { 
+    WIClient._setInitializationPromise(testClient.authTokenManager.getAuthToken());
+    testClient.getPlans(projectName).then((plans: TestPlan[]) => {
         let flag: boolean = false;
         let firstPlan = 0;
         plans.forEach(plan => {
@@ -187,13 +186,11 @@ async function BuildSelect(projectName: string, selectPlan: JQuery) {
         $("#loading").hide();
         selectPlan.val(firstPlan);
         selectPlan.show();
-        BuildTestsSum(projectName, firstPlan);
-        BuildTableTestGrid(projectName, firstPlan, selectPlan).then(() => {
-            selectPlan.removeAttr("disabled");
-        }) 
+        let selectedPlan = $("#selectPlan").children("option:selected").val();
+        RunBuilds(projectName, selectedPlan, selectPlan);
     })
 }
-async function BuildTableTestGrid(projectName: string, testPlanId: number, selectPlan: JQuery): Promise<void> {
+function ShowInfos(projectName: string, testPlanId: number, selectPlan: JQuery) {
     // turn off all view
     $("#mainFunction").attr("disabled", "true");
     selectPlan.attr("disabled", "true");
@@ -205,15 +202,20 @@ async function BuildTableTestGrid(projectName: string, testPlanId: number, selec
     planInfo.empty();
     testClient.getPlanById(projectName, testPlanId).then((selectedPlan) => {
         ShowPlaneInfos(selectedPlan, testPlanId, planInfo, projectName);
-    })
-    GetTestPlanSuites(testPlanId, projectName).then((palneFullInfo) => {
-        palnInfoExcell = palneFullInfo;
-        let rootTestCase: TestSuiteModel = ReArangeSuiteList(palneFullInfo);
-        BuildTreeView(rootTestCase);
-        $("#mainFunction").removeAttr("disabled");
         selectPlan.removeAttr("disabled");
-        $("#analyzingGif").hide();
-    })
+    });
+}
+function BuildTableTestGrid(projectName: string, testPlanId: number, selectPlan: JQuery, suites: TestSuite[]) {
+    if (suites.length > 0) {
+        GetTestSuites(suites, projectName, testPlanId).then((palneFullInfo: TestSuiteModel[]) => {
+            palnInfoExcell = palneFullInfo;
+            let rootTestCase: TestSuiteModel = ReArangeSuiteList(palneFullInfo);
+            BuildTreeView(rootTestCase);
+            $("#mainFunction").removeAttr("disabled");
+            selectPlan.removeAttr("disabled");
+            $("#analyzingGif").hide();
+        })
+    }
 }
 function ShowPlaneInfos(selectedPlan: TestPlan, testPlanId: number, planInfo: JQuery, projectName: string) {
     let table = $("<table />");
@@ -233,17 +235,9 @@ function ShowPlaneInfos(selectedPlan: TestPlan, testPlanId: number, planInfo: JQ
     table.append(tr);
     planInfo.append(table);
 }
-async function GetTestPlanSuites(testPlanId: number, projectName: string) {
-    let suites = await testClient.getTestSuitesForPlan(projectName, testPlanId);
-    if (suites.length > 0) {
-        return await GetTestSuites(suites, projectName, testPlanId);
-    }
-    else {
-        return new Array<TestSuiteModel>();;
-    }
-}
 async function GetTestSuites(suites: TestSuite[], projectName: string, testPlanId: number) {
     let planFullInfo: Array<TestSuiteModel> = new Array<TestSuiteModel>();
+    // convert back to foreach and dont use await.... put await all in the end
     for (const suite of suites) {
         let newSuite: TestSuiteModel = new TestSuiteModel();
         newSuite.suiteId = suite.id;
@@ -261,84 +255,101 @@ async function GetTestSuites(suites: TestSuite[], projectName: string, testPlanI
         newSuite.testCaseCount = suite.testCaseCount;
         newSuite.suiteState = suite.state;
         newSuite.childrenSuites = Array<TestSuiteModel>();
-        newSuite.testPointList = await GetTestPoints(projectName, testPlanId, suite.id)
+        newSuite.testPointList = await GetTestPointsV2(projectName, testPlanId, suite.id)  // try V2
         planFullInfo.push(newSuite);
     }
     return planFullInfo;
 }
-async function GetTestPoints(projectName: string, testPlanId: number, suiteId: number) {
-    let TestPointList = new Array<TestPointModel>();
+async function GetTestPointsV2(projectName: string, testPlanId: number, suiteId: number) {
     let testPoints = await testClient.getPoints(projectName, testPlanId, suiteId);
-    for (const testPoint of testPoints) {
-        let testPointModel: TestPointModel = await GetTestRunsResults(projectName, testPoint);
-        TestPointList.push(testPointModel);
-    }
-    return TestPointList;
+    return GetAllTestRunsResults(projectName, testPoints);
 }
-async function GetTestRunsResults(projectName: string, testPoint: TestPoint) {
-    let incomplite: number = 0;
-    let notApplicable: number = 0;
-    let passed: number = 0;
-    let total: number = 0;
-    let postProcess: string = "";
-    let stepFaild: string = "";
-    let outcome: string = testPoint.outcome;
-    let TestCaseWI = await WIClient.getWorkItem(+testPoint.testCase.id, null, null, WorkItemExpand.All);
-    let testName = TestCaseWI.fields["System.Title"].toString();
-    if (testPoint.lastTestRun.id != "0") {
-        let run = await testClient.getTestRunById(projectName, +testPoint.lastTestRun.id);
-        let testResult2 = await testClient.getTestIterations(projectName, run.id, +testPoint.lastResult.id, true);
-        testResult2.forEach(result => {
-            if (result.outcome == undefined) {
-                outcome = "In Progress";
+async function GetAllTestRunsResults(projectName: string, testPoints: TestPoint[]) {
+    let testPointsModel: Array<TestPointModel> = new Array<TestPointModel>();
+    let testPointsIDs: Array<number> = new Array<number>();
+    testPoints.forEach(testPoint => {
+        testPointsIDs.push(+testPoint.testCase.id)
+    });
+    let TestCaseWIs: Array<WorkItem> = new Array<WorkItem>();
+    if (testPoints.length > 0) {
+        TestCaseWIs = await WIClient.getWorkItems(testPointsIDs, null, null, WorkItemExpand.All);
+    }
+    let TestRuns: TestRun[] = await testClient.getTestRuns(projectName);
+    testPoints.forEach(testPoint => {
+        let testName: string = "";
+        let incomplite: number = 0;
+        let notApplicable: number = 0;
+        let passed: number = 0;
+        let total: number = 0;
+        let postProcess: string = "";
+        let stepFaild: string = "";
+        let outcome: string = testPoint.outcome;
+        let assingTo: string = "None";
+        TestCaseWIs.forEach(TestCaseWI => {
+            if (TestCaseWI.id == +testPoint.testCase.id) {
+                testName = TestCaseWI.fields["System.Title"].toString();
             }
-            let actionResolt = result.actionResults.pop();
-            if (actionResolt != undefined && actionResolt.outcome == "Failed") {
-                let steps: Element = $.parseXML(TestCaseWI.fields["Microsoft.VSTS.TCM.Steps"]).children[0];
-                if (steps != null && steps != undefined) {
-                    for (var i = 0; i < steps.childNodes.length; i++) {
-                        if (+steps.children[i].id == +actionResolt.actionPath) {
-                            stepFaild = steps.children[i].textContent; + " ; " + actionResolt.comment + " ; " + actionResolt.errorMessage;
-                        }
-                    }
+        });
+        if (testPoint.lastTestRun.id != "0") {
+            TestRuns.forEach(run => {
+                if (run.id == +testPoint.lastTestRun.id) {
+                    incomplite = run.incompleteTests;
+                    notApplicable = run.notApplicableTests;
+                    passed = run.passedTests;
+                    total = run.totalTests;
+                    postProcess = run.postProcessState;
+
+                    // let testResult2 = await testClient.getTestIterations(projectName, run.id, +testPoint.lastResult.id, true);
+                    // testResult2.forEach(result => {
+                    //     if (result.outcome == undefined) {
+                    //         outcome = "In Progress";
+                    //     }
+                    //     let actionResolt = result.actionResults.pop();
+                    //     if (actionResolt != undefined && actionResolt.outcome == "Failed") {
+                    //         let steps: Element = $.parseXML(TestCaseWI.fields["Microsoft.VSTS.TCM.Steps"]).children[0];
+                    //         if (steps != null && steps != undefined) {
+                    //             for (var i = 0; i < steps.childNodes.length; i++) {
+                    //                 if (+steps.children[i].id == +actionResolt.actionPath) {
+                    //                     stepFaild = steps.children[i].textContent; + " ; " + actionResolt.comment + " ; " + actionResolt.errorMessage;
+                    //                 }
+                    //             }
+                    //         }
+                    //         else {
+                    //             stepFaild = actionResolt.comment + " ; " + actionResolt.errorMessage;
+                    //         }
+                    //     }
+                    // })
+
                 }
-                else {
-                    stepFaild = actionResolt.comment + " ; " + actionResolt.errorMessage;
-                }
-            }
-        })
-        incomplite = run.incompleteTests;
-        notApplicable = run.notApplicableTests;
-        passed = run.passedTests;
-        total = run.totalTests;
-        postProcess = run.postProcessState;
-    }
-    if (outcome == "Unspecified") {
-        outcome = "Not Run";
-    }
-    let assingTo: string = "None";
-    if (testPoint.assignedTo.displayName != null) {
-        assingTo = testPoint.assignedTo.displayName.split(' <')[0];
-    }
-    let testPointModel: TestPointModel = {
-        incompliteTests: incomplite,
-        notApplicableTests: notApplicable,
-        passedTests: passed,
-        postProcessState: postProcess,
-        totalTests: total,
-        id: testPoint.id.toString(),
-        assignedTo: assingTo,
-        comment: testPoint.comment,
-        outCome: outcome,
-        lastTestRun: testPoint.lastTestRun.name,
-        failureType: testPoint.failureType,
-        testCaseId: testPoint.testCase.id,
-        FaildStep: stepFaild,
-        testCaseName: testName,
-        testCaseType: testPoint.testCase.type,
-        configuration: testPoint.configuration.name
-    }
-    return testPointModel;
+            });
+        }
+        if (outcome == "Unspecified") {
+            outcome = "Not Run";
+        }
+        if (testPoint.assignedTo.displayName != null) {
+            assingTo = testPoint.assignedTo.displayName.split(' <')[0];
+        }
+        let testPointModel: TestPointModel = {
+            incompliteTests: incomplite,
+            notApplicableTests: notApplicable,
+            passedTests: passed,
+            postProcessState: postProcess,
+            totalTests: total,
+            id: testPoint.id.toString(),
+            assignedTo: assingTo,
+            comment: testPoint.comment,
+            outCome: outcome,
+            lastTestRun: testPoint.lastTestRun.name,
+            failureType: testPoint.failureType,
+            testCaseId: testPoint.testCase.id,
+            FaildStep: stepFaild,
+            testCaseName: testName,
+            testCaseType: testPoint.testCase.type,
+            configuration: testPoint.configuration.name
+        }
+        testPointsModel.push(testPointModel);
+    });
+    return testPointsModel;
 }
 function ReArangeSuiteList(palneFullInfo: Array<TestSuiteModel>) {
     let rootSuite: TestSuiteModel;
@@ -464,7 +475,7 @@ function TextView(lable: any, size: number) {
     }
     return textSpan;
 }
-async function BuildTestsSum(projectName: string, selectedPlane: number) {
+async function BuildTestsSum(suites: TestSuite[]) {//projectName: string, selectedPlane: number, 
     let planInfo = $("#PlanInfos");
     planInfo.empty();
     let totalTests: SumeSuite = {
@@ -480,13 +491,12 @@ async function BuildTestsSum(projectName: string, selectedPlane: number) {
         suiteLevel: 0
     }
     let SumSuites: Array<SumeSuite> = new Array<SumeSuite>();
-    let suites = await testClient.getTestSuitesForPlan(projectName, selectedPlane);
     let rootName: string = "";
     for (const suite of suites) {
         if (rootName == "" && suite.parent == undefined) {
             rootName = suite.name;
         }
-        let newSuite: SumeSuite = await GetSuiteSum(suite);//,rootName
+        let newSuite: SumeSuite = await GetSuiteSum(suite);
         totalTests.Blocked += newSuite.Blocked;
         totalTests.Failed += newSuite.Failed;
         totalTests.InProgress += newSuite.InProgress;
@@ -500,8 +510,8 @@ async function BuildTestsSum(projectName: string, selectedPlane: number) {
     SumSuites.sort((a: SumeSuite, b: SumeSuite) => b.totalPoints - a.totalPoints);
     SumSuites.push(totalTests);
     SumSuitesforExecell = SumSuites;
-    BuildTestsView(SumSuites);
     BuildGraphs(SumSuites);
+    BuildTestsView(SumSuites);
 }
 async function GetSuiteSum(suite: TestSuite) {
     let suiteSum: SumeSuite = new SumeSuite();
