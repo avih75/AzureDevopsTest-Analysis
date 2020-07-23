@@ -23,6 +23,16 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
     }
     class SumeSuite {
     }
+    function CreateCalculateImgDiv() {
+        let $calculateDiv = $("<div />");
+        let $calculateImg = $("<img />");
+        $calculateImg.attr("src", "images/Calculating.gif");
+        let $calculateLabel = $("<label />");
+        $calculateLabel.text("##### #### ### ## ### #");
+        $calculateDiv.append($calculateImg);
+        $calculateDiv.append($calculateLabel);
+        return $calculateDiv;
+    }
     function Init_Page() {
         return __awaiter(this, void 0, void 0, function* () {
             let webContext = VSS.getWebContext();
@@ -58,13 +68,6 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
                     $("#levelText").show();
                 }
             });
-        });
-    }
-    function RunBuilds(projectName, selectedPlan, selectPlan) {
-        testClient.getTestSuitesForPlan(projectName, +selectedPlan).then((suites) => {
-            ShowInfos(projectName, +selectedPlan, selectPlan);
-            BuildTestsSum(projectName, +selectedPlan, suites);
-            BuildTableTestGrid(projectName, +selectedPlan, selectPlan, suites);
         });
     }
     function buildView() {
@@ -145,15 +148,22 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
             selectPlan.val(firstPlan);
             selectPlan.show();
             let selectedPlan = $("#selectPlan").children("option:selected").val();
-            testClient.getTestSuitesForPlan(projectName, +selectedPlan).then((suites) => {
-                RunBuilds(projectName, selectedPlan, selectPlan);
-            });
+            RunBuilds(projectName, selectedPlan, selectPlan);
         });
+    }
+    function RunBuilds(projectName, selectedPlan, selectPlan) {
+        $("#grid-container").append(CreateCalculateImgDiv());
+        $("#table-container").append(CreateCalculateImgDiv());
+        $("#graph-container").append(CreateCalculateImgDiv());
+        testClient.getTestSuitesForPlan(projectName, +selectedPlan).then((suites) => __awaiter(this, void 0, void 0, function* () {
+            ShowInfos(projectName, +selectedPlan, selectPlan);
+            yield BuildTestsSum(suites);
+            BuildTableTestGrid(projectName, +selectedPlan, selectPlan, suites);
+        }));
     }
     function ShowInfos(projectName, testPlanId, selectPlan) {
         $("#mainFunction").attr("disabled", "true");
         selectPlan.attr("disabled", "true");
-        $("#analyzingGif").show();
         let container = $("#grid-container");
         let planInfo = $("#PlanInfos");
         container.empty();
@@ -162,18 +172,6 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
             ShowPlaneInfos(selectedPlan, testPlanId, planInfo, projectName);
             selectPlan.removeAttr("disabled");
         });
-    }
-    function BuildTableTestGrid(projectName, testPlanId, selectPlan, suites) {
-        if (suites.length > 0) {
-            GetTestSuites(suites, projectName, testPlanId).then((palneFullInfo) => {
-                palnInfoExcell = palneFullInfo;
-                let rootTestCase = ReArangeSuiteList(palneFullInfo);
-                BuildTreeView(rootTestCase);
-                $("#mainFunction").removeAttr("disabled");
-                selectPlan.removeAttr("disabled");
-                $("#analyzingGif").hide();
-            });
-        }
     }
     function ShowPlaneInfos(selectedPlan, testPlanId, planInfo, projectName) {
         let table = $("<table />");
@@ -192,6 +190,17 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
         tr.append(TextView(selectedPlan.state, 6));
         table.append(tr);
         planInfo.append(table);
+    }
+    function BuildTableTestGrid(projectName, testPlanId, selectPlan, suites) {
+        if (suites.length > 0) {
+            GetTestSuites(suites, projectName, testPlanId).then((palneFullInfo) => {
+                palnInfoExcell = palneFullInfo;
+                let rootTestCase = ReArangeSuiteList(palneFullInfo);
+                BuildTreeView(rootTestCase);
+                $("#mainFunction").removeAttr("disabled");
+                selectPlan.removeAttr("disabled");
+            });
+        }
     }
     function GetTestSuites(suites, projectName, testPlanId) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -318,6 +327,7 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
     }
     function BuildTreeView(rootTestCase) {
         let MasterDiv = $("#grid-container");
+        MasterDiv.empty();
         let mainUl = $("<ul />");
         mainUl.addClass("myUL");
         mainUl.append(BuildTreeSuiteView(rootTestCase));
@@ -408,22 +418,21 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
         }
         return textSpan;
     }
-    function BuildTestsSum(projectName, selectedPlane, suites) {
+    function BuildTestsSum(suites) {
         return __awaiter(this, void 0, void 0, function* () {
             let planInfo = $("#PlanInfos");
             planInfo.empty();
-            let totalTests = {
-                SuiteName: "Total",
-                Blocked: 0,
-                Failed: 0,
-                InProgress: 0,
-                NotApplicable: 0,
-                NotRun: 0,
-                Passed: 0,
-                Paused: 0,
-                totalPoints: 0,
-                suiteLevel: 0
-            };
+            let totalTests = new SumeSuite();
+            totalTests.SuiteName = "Total";
+            totalTests.Blocked = 0;
+            totalTests.Failed = 0;
+            totalTests.InProgress = 0;
+            totalTests.NotApplicable = 0;
+            totalTests.NotRun = 0;
+            totalTests.Passed = 0;
+            totalTests.Paused = 0;
+            totalTests.totalPoints = 0;
+            totalTests.suiteLevel = 0;
             let SumSuites = new Array();
             let rootName = "";
             for (const suite of suites) {
@@ -445,7 +454,7 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
             SumSuites.sort((a, b) => b.totalPoints - a.totalPoints);
             SumSuites.push(totalTests);
             SumSuitesforExecell = SumSuites;
-            BuildGraphs(SumSuites);
+            yield BuildGraphs(SumSuites);
             BuildTestsView(SumSuites);
         });
     }
@@ -503,11 +512,11 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
         });
     }
     function BuildTestsView(SumSuites) {
-        var graphContainer = $("#table-container");
-        graphContainer.empty();
+        let tableContainer = $("#table-container");
+        tableContainer.empty();
         let container = $("<div />");
         container.addClass("TestSuit");
-        var gridTestSuiteOptions = {
+        let gridTestSuiteOptions = {
             height: (30 * (SumSuites.length + 1)).toString(),
             source: SumSuites,
             header: true,
@@ -523,9 +532,9 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
                 { text: "Blocked", width: 80, index: "Blocked" }
             ]
         };
-        var target = Controls.create(Grids.Grid, container, gridTestSuiteOptions);
+        let target = Controls.create(Grids.Grid, container, gridTestSuiteOptions);
         target.setDataSource(SumSuites);
-        graphContainer.append(container);
+        tableContainer.append(container);
     }
     function BuildGraphs(SumSuites) {
         let $container = $('#graph-container');
@@ -585,11 +594,43 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
         $secDev.append($table);
         $container.append($secDev);
         let cakeGraphId = SumSuites.length - 1;
-        BuildStackedColumnChart(SumSuites, $spanMainChart, $spanDynamiclPie, $spanEmptySuites);
-        BuildPieChart(SumSuites[0], $spanDynamiclPie, "Total Suits");
-        BuildPieChart(SumSuites[cakeGraphId], $spanTotalPie, "Selected Suits");
+        BuildStackedColumnChart(SumSuites, $spanMainChart, $spanDynamiclPie, $spanEmptySuites, Colorize());
+        BuildPieChart(SumSuites[0], $spanDynamiclPie, "Total Suits", Colorize());
+        BuildPieChart(SumSuites[cakeGraphId], $spanTotalPie, "Selected Suits", Colorize());
     }
-    function BuildStackedColumnChart(SumSuites, $graphSpan, $dinamicPieSpan, $emptySuite) {
+    function Colorize() {
+        let colorPass = {
+            backgroundColor: 'Green',
+            value: 'Passed'
+        };
+        let colorFailed = {
+            backgroundColor: 'Red',
+            value: 'Failed'
+        };
+        let colorNotRun = {
+            backgroundColor: 'Gray',
+            value: 'Not Run'
+        };
+        let colorInProgress = {
+            backgroundColor: 'Blue',
+            value: 'In Progress'
+        };
+        let colorInNotApplicable = {
+            backgroundColor: 'White',
+            value: 'Not Applicable'
+        };
+        let colors = new Array();
+        colors.push(colorPass);
+        colors.push(colorFailed);
+        colors.push(colorNotRun);
+        colors.push(colorInProgress);
+        colors.push(colorInNotApplicable);
+        let colorize = {
+            customColors: colors
+        };
+        return colorize;
+    }
+    function BuildStackedColumnChart(SumSuites, $graphSpan, $dinamicPieSpan, $emptySuite, colorize) {
         let deep = $('#deep').is(":checked");
         let howDeep = $("#level").val();
         let Paused = [];
@@ -654,6 +695,7 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
         let chartStackedColumnOptions = {
             "tooltip": toolTipOption,
             "chartType": Contracts_1.ChartTypesConstants.StackedColumn,
+            colorCustomizationOptions: colorize,
             "xAxis": {
                 canZoom: true,
                 suppressLabelTruncation: true,
@@ -665,7 +707,7 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
             "series": series,
             "click": (clickeEvent) => {
                 $dinamicPieSpan.empty();
-                BuildPieChart(SumSuites[clickeEvent.seriesDataIndex], $dinamicPieSpan, "Selected suits");
+                BuildPieChart(SumSuites[clickeEvent.seriesDataIndex], $dinamicPieSpan, "Selected suits", colorize);
             },
         };
         BuildEmptyStuiteList(emptySuites, $emptySuite);
@@ -692,7 +734,7 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
             $emptySuite.append($mainContainer);
         }
     }
-    function BuildPieChart(selectedSuite, $rightGraph, title) {
+    function BuildPieChart(selectedSuite, $rightGraph, title, colorize) {
         let legend = {
             enabled: false
         };
@@ -701,7 +743,9 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
             "suppressMargin": true,
             "legend": legend,
             suppressAnimation: true,
+            hostOptions: { height: 250, width: 250 },
             "chartType": Contracts_1.ChartTypesConstants.Pie,
+            colorCustomizationOptions: colorize,
             "xAxis": {
                 title: title,
                 canZoom: true,
