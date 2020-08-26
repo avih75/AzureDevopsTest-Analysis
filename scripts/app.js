@@ -247,7 +247,7 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
                 TestCaseWIs = yield WIClient.getWorkItems(testPointsIDs, null, null, Contracts_2.WorkItemExpand.All);
             }
             let TestRuns = yield testClient.getTestRuns(projectName);
-            testPoints.forEach(testPoint => {
+            for (const testPoint of testPoints) {
                 let testName = "";
                 let incomplite = 0;
                 let notApplicable = 0;
@@ -263,15 +263,55 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
                     }
                 });
                 if (testPoint.lastTestRun.id != "0") {
-                    TestRuns.forEach(run => {
+                    for (const run of TestRuns) {
                         if (run.id == +testPoint.lastTestRun.id) {
                             incomplite = run.incompleteTests;
                             notApplicable = run.notApplicableTests;
                             passed = run.passedTests;
                             total = run.totalTests;
                             postProcess = run.postProcessState;
+                            let testResult2 = yield testClient.getTestIterations(projectName, run.id, +testPoint.lastResult.id, true);
+                            testResult2.forEach(result => {
+                                if (result.outcome == undefined) {
+                                    outcome = "In Progress";
+                                }
+                                let actionResolt = result.actionResults.pop();
+                                if (actionResolt != undefined && actionResolt.outcome == "Failed") {
+                                    TestCaseWIs.forEach(TestCaseWI => {
+                                        if (TestCaseWI.id == +testPoint.testCase.id) {
+                                            let steps = $.parseXML(TestCaseWI.fields["Microsoft.VSTS.TCM.Steps"]).children[0];
+                                            if (steps != null && steps != undefined) {
+                                                for (var i = 0; i < steps.childNodes.length; i++) {
+                                                    if (+steps.children[i].id == +actionResolt.actionPath) {
+                                                        stepFaild = steps.children[i].textContent;
+                                                        +" ; " + actionResolt.comment + " ; " + actionResolt.errorMessage;
+                                                        stepFaild = stepFaild.replace("<DIV>", " ");
+                                                        stepFaild = stepFaild.replace("<DIV>", " ");
+                                                        stepFaild = stepFaild.replace("<DIV>", " ");
+                                                        stepFaild = stepFaild.replace("</DIV>", " ");
+                                                        stepFaild = stepFaild.replace("</DIV>", " ");
+                                                        stepFaild = stepFaild.replace("</DIV>", " ");
+                                                        stepFaild = stepFaild.replace("<P>", " ");
+                                                        stepFaild = stepFaild.replace("<P>", " ");
+                                                        stepFaild = stepFaild.replace("<P>", " ");
+                                                        stepFaild = stepFaild.replace("</P>", " ");
+                                                        stepFaild = stepFaild.replace("</P>", " ");
+                                                        stepFaild = stepFaild.replace("</P>", " ");
+                                                        stepFaild = stepFaild.replace("&nbsp", " ");
+                                                        stepFaild = stepFaild.replace("&nbsp", " ");
+                                                        stepFaild = stepFaild.replace("&nbsp", " ");
+                                                    }
+                                                }
+                                            }
+                                            else {
+                                                stepFaild = actionResolt.comment + " ; " + actionResolt.errorMessage;
+                                            }
+                                        }
+                                    });
+                                }
+                            });
                         }
-                    });
+                    }
                 }
                 if (outcome == "Unspecified") {
                     outcome = "Not Run";
@@ -298,7 +338,7 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
                     configuration: testPoint.configuration.name
                 };
                 testPointsModel.push(testPointModel);
-            });
+            }
             return testPointsModel;
         });
     }
@@ -435,27 +475,27 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
             totalTests.suiteLevel = 0;
             let SumSuites = new Array();
             let rootName = "";
-            for (const suite of suites) {
-                if (rootName == "" && suite.parent == undefined) {
-                    rootName = suite.name;
-                }
-                let newSuite = yield GetSuiteSum(suite);
-                totalTests.Blocked += newSuite.Blocked;
-                totalTests.Failed += newSuite.Failed;
-                totalTests.InProgress += newSuite.InProgress;
-                totalTests.NotApplicable += newSuite.NotApplicable;
-                totalTests.NotRun += newSuite.NotRun;
-                totalTests.Passed += newSuite.Passed;
-                totalTests.Paused += newSuite.Paused;
-                totalTests.totalPoints += newSuite.totalPoints;
-                SumSuites.push(newSuite);
-            }
-            ;
-            SumSuites.sort((a, b) => b.totalPoints - a.totalPoints);
-            SumSuites.push(totalTests);
-            SumSuitesforExecell = SumSuites;
-            yield BuildGraphs(SumSuites);
-            BuildTestsView(SumSuites);
+            let promisss = new Array();
+            suites.forEach(suite => {
+                promisss.push(GetSuiteSum(suite).then((newSuite) => {
+                    totalTests.Blocked += newSuite.Blocked;
+                    totalTests.Failed += newSuite.Failed;
+                    totalTests.InProgress += newSuite.InProgress;
+                    totalTests.NotApplicable += newSuite.NotApplicable;
+                    totalTests.NotRun += newSuite.NotRun;
+                    totalTests.Passed += newSuite.Passed;
+                    totalTests.Paused += newSuite.Paused;
+                    totalTests.totalPoints += newSuite.totalPoints;
+                    SumSuites.push(newSuite);
+                }));
+            });
+            let x = Promise.all(promisss).then(() => __awaiter(this, void 0, void 0, function* () {
+                SumSuites.sort((a, b) => b.totalPoints - a.totalPoints);
+                SumSuites.push(totalTests);
+                SumSuitesforExecell = SumSuites;
+                yield BuildGraphs(SumSuites);
+                BuildTestsView(SumSuites);
+            }));
         });
     }
     function GetSuiteSum(suite) {

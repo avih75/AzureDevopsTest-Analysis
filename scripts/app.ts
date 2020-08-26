@@ -287,7 +287,8 @@ async function GetAllTestRunsResults(projectName: string, testPoints: TestPoint[
         TestCaseWIs = await WIClient.getWorkItems(testPointsIDs, null, null, WorkItemExpand.All);
     }
     let TestRuns: TestRun[] = await testClient.getTestRuns(projectName);
-    testPoints.forEach(testPoint => {
+    for (const testPoint of testPoints) {
+    // testPoints.forEach(async testPoint => {
         let testName: string = "";
         let incomplite: number = 0;
         let notApplicable: number = 0;
@@ -303,35 +304,58 @@ async function GetAllTestRunsResults(projectName: string, testPoints: TestPoint[
             }
         });
         if (testPoint.lastTestRun.id != "0") {
-            TestRuns.forEach(run => {
+            for (const run of TestRuns) {
+            // TestRuns.forEach(async run => {
                 if (run.id == +testPoint.lastTestRun.id) {
                     incomplite = run.incompleteTests;
                     notApplicable = run.notApplicableTests;
                     passed = run.passedTests;
                     total = run.totalTests;
                     postProcess = run.postProcessState;
-                    // let testResult2 = await testClient.getTestIterations(projectName, run.id, +testPoint.lastResult.id, true);
-                    // testResult2.forEach(result => {
-                    //     if (result.outcome == undefined) {
-                    //         outcome = "In Progress";
-                    //     }
-                    //     let actionResolt = result.actionResults.pop();
-                    //     if (actionResolt != undefined && actionResolt.outcome == "Failed") {
-                    //         let steps: Element = $.parseXML(TestCaseWI.fields["Microsoft.VSTS.TCM.Steps"]).children[0];
-                    //         if (steps != null && steps != undefined) {
-                    //             for (var i = 0; i < steps.childNodes.length; i++) {
-                    //                 if (+steps.children[i].id == +actionResolt.actionPath) {
-                    //                     stepFaild = steps.children[i].textContent; + " ; " + actionResolt.comment + " ; " + actionResolt.errorMessage;
-                    //                 }
-                    //             }
-                    //         }
-                    //         else {
-                    //             stepFaild = actionResolt.comment + " ; " + actionResolt.errorMessage;
-                    //         }
-                    //     }
-                    // })
+                    ///////////
+                    let testResult2 = await testClient.getTestIterations(projectName, run.id, +testPoint.lastResult.id, true);
+                    testResult2.forEach(result => {                        
+                         if (result.outcome == undefined) {
+                             outcome = "In Progress";
+                         }
+                        let actionResolt = result.actionResults.pop();
+                         if (actionResolt != undefined && actionResolt.outcome == "Failed") {
+                            TestCaseWIs.forEach(TestCaseWI => {
+                                if (TestCaseWI.id == +testPoint.testCase.id) {
+                                    //testName = TestCaseWI.fields["System.Title"].toString();
+                                    let steps: Element = $.parseXML(TestCaseWI.fields["Microsoft.VSTS.TCM.Steps"]).children[0];
+                                    if (steps != null && steps != undefined) {
+                                        for (var i = 0; i < steps.childNodes.length; i++) {
+                                            if (+steps.children[i].id == +actionResolt.actionPath) {
+                                                stepFaild = steps.children[i].textContent; + " ; " + actionResolt.comment + " ; " + actionResolt.errorMessage;
+                                                stepFaild = stepFaild.replace("<DIV>"," ");
+                                                stepFaild = stepFaild.replace("<DIV>"," ");
+                                                stepFaild = stepFaild.replace("<DIV>"," ");
+                                                stepFaild = stepFaild.replace("</DIV>"," ");
+                                                stepFaild = stepFaild.replace("</DIV>"," ");
+                                                stepFaild = stepFaild.replace("</DIV>"," ");
+                                                stepFaild = stepFaild.replace("<P>"," ");
+                                                stepFaild = stepFaild.replace("<P>"," ");
+                                                stepFaild = stepFaild.replace("<P>"," ");
+                                                stepFaild = stepFaild.replace("</P>"," ");
+                                                stepFaild = stepFaild.replace("</P>"," ");
+                                                stepFaild = stepFaild.replace("</P>"," ");
+                                                stepFaild = stepFaild.replace("&nbsp"," ");
+                                                stepFaild = stepFaild.replace("&nbsp"," ");
+                                                stepFaild = stepFaild.replace("&nbsp"," ");
+                                            }
+                                        }
+                                    }
+                                    else {
+                                        stepFaild = actionResolt.comment + " ; " + actionResolt.errorMessage;
+                                    }
+                                }
+                            });
+                         }
+                     })
+                    /////////////
                 }
-            });
+            }//);
         }
         if (outcome == "Unspecified") {
             outcome = "Not Run";
@@ -358,7 +382,7 @@ async function GetAllTestRunsResults(projectName: string, testPoints: TestPoint[
             configuration: testPoint.configuration.name
         }
         testPointsModel.push(testPointModel);
-    });
+    }//);
     return testPointsModel;
 }
 function ReArangeSuiteList(palneFullInfo: Array<TestSuiteModel>) {
@@ -502,47 +526,78 @@ async function BuildTestsSum(suites: TestSuite[]) {//projectName: string, select
     totalTests.suiteLevel = 0
     let SumSuites: Array<SumeSuite> = new Array<SumeSuite>();
     let rootName: string = "";
-    for (const suite of suites) {
-        // let promisss: Array<Promise<void>> = new Array<Promise<void>>();
-        // suites.forEach(suite => {
-        // });
-        if (rootName == "" && suite.parent == undefined) {
-            rootName = suite.name;
-        }
-        let newSuite: SumeSuite = await GetSuiteSum(suite);
-        totalTests.Blocked += newSuite.Blocked;
-        totalTests.Failed += newSuite.Failed;
-        totalTests.InProgress += newSuite.InProgress;
-        totalTests.NotApplicable += newSuite.NotApplicable;
-        totalTests.NotRun += newSuite.NotRun;
-        totalTests.Passed += newSuite.Passed;
-        totalTests.Paused += newSuite.Paused;
-        totalTests.totalPoints += newSuite.totalPoints;
-        SumSuites.push(newSuite);
-        ////let NewSuite: SumeSuite = null;
-        // promisss.push(GetSuiteSum(suite).then((newSuite) => {
-        //     totalTests.Blocked += newSuite.Blocked;
-        //     totalTests.Failed += newSuite.Failed;
-        //     totalTests.InProgress += newSuite.InProgress;
-        //     totalTests.NotApplicable += newSuite.NotApplicable;
-        //     totalTests.NotRun += newSuite.NotRun;
-        //     totalTests.Passed += newSuite.Passed;
-        //     totalTests.Paused += newSuite.Paused;
-        //     totalTests.totalPoints += newSuite.totalPoints;
-        //     SumSuites.push(newSuite);
-        ////NewSuite = newSuite;
-        //}))
-        ////SumSuites.push(NewSuite);
-    };
-    // );
+    let promisss: Array<Promise<void>> = new Array<Promise<void>>();
+    suites.forEach(suite => {
+        //let NewSuite: SumeSuite = null;
+        promisss.push(GetSuiteSum(suite).then((newSuite) => {
+            totalTests.Blocked += newSuite.Blocked;
+            totalTests.Failed += newSuite.Failed;
+            totalTests.InProgress += newSuite.InProgress;
+            totalTests.NotApplicable += newSuite.NotApplicable;
+            totalTests.NotRun += newSuite.NotRun;
+            totalTests.Passed += newSuite.Passed;
+            totalTests.Paused += newSuite.Paused;
+            totalTests.totalPoints += newSuite.totalPoints;
+            SumSuites.push(newSuite);
+            //NewSuite = newSuite;
+        }))
+    });
+    // await promisss.every()
     // await all;
-    //Promise.all(promisss);
-    SumSuites.sort((a: SumeSuite, b: SumeSuite) => b.totalPoints - a.totalPoints);
-    SumSuites.push(totalTests);
-    SumSuitesforExecell = SumSuites;
-    await BuildGraphs(SumSuites);
-    //$("#analyzingGif").hide();
-    BuildTestsView(SumSuites);
+    let x = Promise.all(promisss).then(async ()=>{
+        SumSuites.sort((a: SumeSuite, b: SumeSuite) => b.totalPoints - a.totalPoints);
+        SumSuites.push(totalTests);
+        SumSuitesforExecell = SumSuites;
+        await BuildGraphs(SumSuites);
+        //$("#analyzingGif").hide();
+        BuildTestsView(SumSuites);
+    })
+
+    // // for (const suite of suites) {
+    // //     // let promisss: Array<Promise<void>> = new Array<Promise<void>>();
+    // //     // suites.forEach(suite => {
+    // //     // });
+    // //     if (rootName == "" && suite.parent == undefined) {
+    // //         rootName = suite.name;
+    // //     }
+    // //     let newSuite: SumeSuite = await GetSuiteSum(suite);
+    // //     totalTests.Blocked += newSuite.Blocked;
+    // //     totalTests.Failed += newSuite.Failed;
+    // //     totalTests.InProgress += newSuite.InProgress;
+    // //     totalTests.NotApplicable += newSuite.NotApplicable;
+    // //     totalTests.NotRun += newSuite.NotRun;
+    // //     totalTests.Passed += newSuite.Passed;
+    // //     totalTests.Paused += newSuite.Paused;
+    // //     totalTests.totalPoints += newSuite.totalPoints;
+    // //     SumSuites.push(newSuite);
+    // //     ////let NewSuite: SumeSuite = null;
+    // //     // promisss.push(GetSuiteSum(suite).then((newSuite) => {
+    // //     //     totalTests.Blocked += newSuite.Blocked;
+    // //     //     totalTests.Failed += newSuite.Failed;
+    // //     //     totalTests.InProgress += newSuite.InProgress;
+    // //     //     totalTests.NotApplicable += newSuite.NotApplicable;
+    // //     //     totalTests.NotRun += newSuite.NotRun;
+    // //     //     totalTests.Passed += newSuite.Passed;
+    // //     //     totalTests.Paused += newSuite.Paused;
+    // //     //     totalTests.totalPoints += newSuite.totalPoints;
+    // //     //     SumSuites.push(newSuite);
+    // //     ////NewSuite = newSuite;
+    // //     //}))
+    // //     ////SumSuites.push(NewSuite);
+    // // };
+    // // // );
+    // // // await all;
+    // // //Promise.all(promisss);
+
+
+
+
+    // // SumSuites.sort((a: SumeSuite, b: SumeSuite) => b.totalPoints - a.totalPoints);
+    // // SumSuites.push(totalTests);
+    // // SumSuitesforExecell = SumSuites;
+    // // await BuildGraphs(SumSuites);
+    // // //$("#analyzingGif").hide();
+    // // BuildTestsView(SumSuites);
 }
 async function GetSuiteSum(suite: TestSuite) {
     let suiteSum: SumeSuite = new SumeSuite();
@@ -719,7 +774,7 @@ function BuildGraphs(SumSuites: Array<SumeSuite>) {
     BuildPieChart(SumSuites[0], $spanDynamiclPie, "Total Suits", Colorize());
     BuildPieChart(SumSuites[cakeGraphId], $spanTotalPie, "Selected Suits", Colorize());
 }
-function Colorize(){
+function Colorize() {
     let colorPass: ColorEntry = {
         backgroundColor: 'Green',
         value: 'Passed'
