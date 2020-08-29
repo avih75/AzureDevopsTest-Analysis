@@ -4,10 +4,9 @@ import { TestPlan, TestSuite, TestPoint, TestRun } from "TFS/TestManagement/Cont
 import { CommonChartOptions, ChartTypesConstants, ClickEvent, LegendOptions, TooltipOptions, ColorCustomizationOptions, ColorEntry } from "Charts/Contracts";
 import { CsvDataService } from "./CsvHelper";
 import { GetLastTimeValue, SetValue } from "./storageHelper";
-
 import { WorkItemExpand, WorkItem } from "TFS/WorkItemTracking/Contracts";
 import WorkItemManagment = require("TFS/WorkItemTracking/RestClient");
- 
+
 let WIClient: WorkItemManagment.WorkItemTrackingHttpClient4_1 = WorkItemManagment.getClient();
 let testClient = TestRestClient.getClient();
 let SumSuitesforExecell: Array<SumeSuite>;
@@ -42,8 +41,7 @@ class TestCaseModel {
     assignedTo: string;
     comment: string;
     failureType: string;
-}
-class TestSuiteModel {
+}class TestSuiteModel {
     suiteId: number;
     perentId: string;
     suiteName: string;
@@ -497,9 +495,7 @@ function TextView(lable: any, size: number) {
     }
     return textSpan;
 }
-async function BuildTestsSum(suites: TestSuite[]) {
-    // let planInfo = $("#PlanInfos");
-    // planInfo.empty();
+async function BuildTestsSum(suites: TestSuite[]) { 
     let totalTests: SumeSuite = new SumeSuite();
     totalTests.SuiteName = "Total";
     totalTests.Blocked = 0
@@ -867,8 +863,6 @@ Init_Page();
 
 // add hide to field step if needed
 //
-// start change the second senario of the table - make it faster
-// add waitnig gif to second senario
-// check the therd senario -> not functioning at all -> functionig if directly start in its pad
+// start change the second senario of the table - make it faster 
 //
 // check th CSV export
