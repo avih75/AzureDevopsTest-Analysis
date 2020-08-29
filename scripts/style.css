@@ -5,7 +5,7 @@
 
 .selectPlan {
     font-size: larger;
-    color: royalblue;
+    color: cyan;
 }
 
 .selectTitle {
@@ -27,14 +27,14 @@
     flex-wrap: wrap;
     padding: 180px;
     font-size: xx-large;
-    color: blue;
+    color: cyan;
 }
 
-.TestSuit {
-    background-color: beige;
+
+/* .TestSuit {
     scroll-behavior: unset;
     border: khaki;
-}
+} */
 
 .TestPoint {
     border-left: solid;
@@ -62,6 +62,42 @@
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
+}
+
+.tableTest {
+    padding: 15px;
+}
+
+.PlanInfos {
+    margin: 10px;
+    padding: 10px;
+}
+
+.tableTD {
+    font-size: 16px;
+    text-align: center;
+}
+
+.tableTH {
+    text-align: center;
+    padding-left: 10px;
+    padding-right: 10px;
+    background-color: lightslategray;
+    font-size: 20px;
+}
+
+.tableTR0 {
+    background-color: rgb(180, 178, 178);
+}
+
+.leftTableTD {
+    background-color: lightslategray;
+    font-size: 16px;
+    padding-left: 10px;
+}
+
+.tableTR1 {
+    background-color: rgb(212, 211, 211);
 }
 
 .caret::before {
@@ -98,27 +134,27 @@
 
 .testLableInfo {
     font-size: medium;
-    color: black;
+    color: gray;
     padding-right: 5px;
 }
 
 .testInfo {
     width: auto;
     font-size: medium;
-    color: blue;
+    color: cyan;
     padding-right: 15px;
 }
 
 .suitLable {
     font-size: medium;
-    color: black;
+    color: gray;
     padding-right: 5px;
 }
 
 .suitInfo {
     width: auto;
     font-size: medium;
-    color: blue;
+    color: cyan;
     padding-right: 15px;
 }
 
@@ -159,7 +195,7 @@
 }
 
 .graphLabels {
-    color: blue;
+    color: cyan;
     font-size: x-large;
     vertical-align: text-top;
     text-align-last: center;
@@ -173,8 +209,16 @@
     top: 50%;
 }
 
+.calculatingGif {
+    position: absolute;
+    height: 100px;
+    width: 100px;
+    left: 40%;
+    top: 50%;
+}
+
 .scroller {
-    overflow: "auto";
+    /* overflow: "auto"; */
     vertical-align: "top"
 }
 

@@ -14,18 +14,22 @@
             moduleLoaderConfig: true,
             explicitNotifyLoaded: true,
             usePlatformScripts: true,
-            usePlatformStyles: true
+            usePlatformStyles: true,
+            applyTheme: true
+        });
+        VSS.require(["scripts/app", "Charts/Services"], function() {
+            VSS.notifyLoadSucceeded();
         });
     </script>
-    <img src="images/analyzing.gif" class="analyzingGif" id="analyzingGif"></img>
-    <div id="mainFunction" class="panel">
+    <!-- <img src="images/analyzing.gif" class="analyzingGif" id="analyzingGif"></img> -->
+    <div id="mainFunction" class="panel" style="overflow:auto;height: 100%;">
         <tr>
             <td id="Tests" class="selectTitle">
                 <span class="Select">Test Plans : </span>
                 <span id="loading" class="Select"> Loading....</span>
                 <select id="selectPlan" class="selectPlan"></select>
                 <span id="excellButton" class="ExcellButton">
-                    <img class="imgX" alt="export to excell file" src="images/excell.jpg"/>
+                    <img class="imgX" alt="export to excell file" src="images/excell.png"/>
                     Export to Csv File
                 </span>
             </td>
@@ -46,29 +50,20 @@
         <div id="PlanInfos"></div>
         <div id="grid-container" class="MainTableDiv"></div>
         <div id="table-container"></div>
-        <div id="graph-container">
+        <div id="graph-container" style="height: 80%;">
+            <!-- <div id="CalculateG" class="Calculating">
+                <img src="images/Calculating.gif" height="40" width="40">
+                <label class="CalculateLable">Mine Data X form Y</label>
+            </div> -->
             <span id="DeepRadioButton" class="DeepRadioButton" style="margin: 10px;">
                 <button id="refresh">Refresh</button>
                 <input type="checkbox" id="deep" value="Deep" checked="true">
-                <label >Deep View</label>
+                <label>Deep View</label>
                 <label id="levelText" class="selectLevel" disable="true" >Levels:</label>
                 <input type="number" id="level" class="selectLevel" >
             </span>
         </div>
     </div>
-
-    <script type="text/javascript">
-        VSS.require(["scripts/app", "Charts/Services"], function() {
-            VSS.notifyLoadSucceeded();
-        })
-        VSS.init({
-            usePlatformScripts: true,
-            usePlatformStyles: true,
-            applyTheme: true
-        });
-    </script>
 </body>
 
 </html>
-
-<!-- "demands": ["contribution/ms.vss-dashboards-web.widget-sdk-version-2", "contribution/ms.vss-web.charts-service"], -->
