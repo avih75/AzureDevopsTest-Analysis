@@ -6,7 +6,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Services", "TFS/TestManagement/RestClient", "Charts/Contracts", "./CsvHelper", "./storageHelper", "TFS/WorkItemTracking/Contracts", "TFS/WorkItemTracking/RestClient"], function (require, exports, Grids, Controls, Services, TestRestClient, Contracts_1, CsvHelper_1, storageHelper_1, Contracts_2, WorkItemManagment) {
+define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient", "Charts/Contracts", "./CsvHelper", "./storageHelper", "TFS/WorkItemTracking/Contracts", "TFS/WorkItemTracking/RestClient"], function (require, exports, Services, TestRestClient, Contracts_1, CsvHelper_1, storageHelper_1, Contracts_2, WorkItemManagment) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     let WIClient = WorkItemManagment.getClient();
@@ -23,14 +23,16 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
     }
     class SumeSuite {
     }
-    function CreateCalculateImgDiv() {
+    function CreateCalculateImgDiv(image) {
         let $calculateDiv = $("<div />");
         let $calculateImg = $("<img />");
-        $calculateImg.attr("src", "images/Calculating.gif");
-        let $calculateLabel = $("<label />");
-        $calculateLabel.text("##### #### ### ## ### #");
+        if (image == "Graph")
+            $calculateImg.attr("src", "images/Calculating.gif");
+        else if (image == "table")
+            $calculateImg.attr("src", "images/tableing.gif");
+        else
+            $calculateImg.attr("src", "images/analyzing.gif");
         $calculateDiv.append($calculateImg);
-        $calculateDiv.append($calculateLabel);
         return $calculateDiv;
     }
     function Init_Page() {
@@ -44,6 +46,7 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
             buildView();
             $("#Graphs").prop("checked", true);
             $("#graph-container").show();
+            $("#PlanInfos").show();
             $("#graph-container").css("overflow-x", 'auto');
             $("#graph-container").addClass("scroller");
             $("#level").val(0);
@@ -99,8 +102,8 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
                 $excellButton.click(() => {
                     CsvHelper_1.CsvDataService.exportToCsv(csvFileName, SumSuitesforExecell);
                 });
+                $("#PlanInfos").show();
                 $("#grid-container").hide();
-                $("#PlanInfos").hide();
                 $("#table-container").show();
                 $("#graph-container").hide();
             }
@@ -108,8 +111,8 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
                 $excellButton.click(() => {
                     CsvHelper_1.CsvDataService.exportToCsv(csvFileName, SumSuitesforExecell);
                 });
+                $("#PlanInfos").show();
                 $("#grid-container").hide();
-                $("#PlanInfos").hide();
                 $("#table-container").hide();
                 $("#graph-container").show();
             }
@@ -152,9 +155,9 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
         });
     }
     function RunBuilds(projectName, selectedPlan, selectPlan) {
-        $("#grid-container").append(CreateCalculateImgDiv());
-        $("#table-container").append(CreateCalculateImgDiv());
-        $("#graph-container").append(CreateCalculateImgDiv());
+        $("#grid-container").append(CreateCalculateImgDiv("Grid"));
+        $("#table-container").append(CreateCalculateImgDiv("Table"));
+        $("#graph-container").append(CreateCalculateImgDiv("Graph"));
         testClient.getTestSuitesForPlan(projectName, +selectedPlan).then((suites) => __awaiter(this, void 0, void 0, function* () {
             ShowInfos(projectName, +selectedPlan, selectPlan);
             yield BuildTestsSum(suites);
@@ -164,9 +167,7 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
     function ShowInfos(projectName, testPlanId, selectPlan) {
         $("#mainFunction").attr("disabled", "true");
         selectPlan.attr("disabled", "true");
-        let container = $("#grid-container");
         let planInfo = $("#PlanInfos");
-        container.empty();
         planInfo.empty();
         testClient.getPlanById(projectName, testPlanId).then((selectedPlan) => {
             ShowPlaneInfos(selectedPlan, testPlanId, planInfo, projectName);
@@ -284,22 +285,8 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
                                                 for (var i = 0; i < steps.childNodes.length; i++) {
                                                     if (+steps.children[i].id == +actionResolt.actionPath) {
                                                         stepFaild = steps.children[i].textContent;
-                                                        +" ; " + actionResolt.comment + " ; " + actionResolt.errorMessage;
-                                                        stepFaild = stepFaild.replace("<DIV>", " ");
-                                                        stepFaild = stepFaild.replace("<DIV>", " ");
-                                                        stepFaild = stepFaild.replace("<DIV>", " ");
-                                                        stepFaild = stepFaild.replace("</DIV>", " ");
-                                                        stepFaild = stepFaild.replace("</DIV>", " ");
-                                                        stepFaild = stepFaild.replace("</DIV>", " ");
-                                                        stepFaild = stepFaild.replace("<P>", " ");
-                                                        stepFaild = stepFaild.replace("<P>", " ");
-                                                        stepFaild = stepFaild.replace("<P>", " ");
-                                                        stepFaild = stepFaild.replace("</P>", " ");
-                                                        stepFaild = stepFaild.replace("</P>", " ");
-                                                        stepFaild = stepFaild.replace("</P>", " ");
-                                                        stepFaild = stepFaild.replace("&nbsp", " ");
-                                                        stepFaild = stepFaild.replace("&nbsp", " ");
-                                                        stepFaild = stepFaild.replace("&nbsp", " ");
+                                                        +" ; " + actionResolt.comment + " ; "
+                                                            + actionResolt.errorMessage;
                                                     }
                                                 }
                                             }
@@ -414,7 +401,13 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
         tr.append(TextView("Outcome:", 1));
         tr.append(TextView(point.outCome, 2));
         tr.append(TextView("Failed step:", 1));
-        tr.append(TextView(point.FaildStep, 2));
+        if (point.FaildStep) {
+            var doc = $($.parseHTML(point.FaildStep));
+            tr.append(doc);
+        }
+        else {
+            tr.append(TextView(point.FaildStep, 2));
+        }
         tr.append(TextView("Assigned To:", 1));
         tr.append(TextView(point.assignedTo, 2));
         tr.append(TextView("Configuration:", 1));
@@ -460,8 +453,6 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
     }
     function BuildTestsSum(suites) {
         return __awaiter(this, void 0, void 0, function* () {
-            let planInfo = $("#PlanInfos");
-            planInfo.empty();
             let totalTests = new SumeSuite();
             totalTests.SuiteName = "Total";
             totalTests.Blocked = 0;
@@ -474,7 +465,6 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
             totalTests.totalPoints = 0;
             totalTests.suiteLevel = 0;
             let SumSuites = new Array();
-            let rootName = "";
             let promisss = new Array();
             suites.forEach(suite => {
                 promisss.push(GetSuiteSum(suite).then((newSuite) => {
@@ -552,28 +542,36 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
         });
     }
     function BuildTestsView(SumSuites) {
-        let tableContainer = $("#table-container");
-        tableContainer.empty();
-        let container = $("<div />");
-        container.addClass("TestSuit");
-        let gridTestSuiteOptions = {
-            height: (30 * (SumSuites.length + 1)).toString(),
-            source: SumSuites,
-            header: true,
-            columns: [
-                { text: "Suite Name", width: 100, index: "SuiteName" },
-                { text: "Total", width: 80, index: "totalPoints" },
-                { text: "Passed", width: 80, index: "Passed" },
-                { text: "Failed", width: 80, index: "Failed" },
-                { text: "Not Run", width: 80, index: "NotRun" },
-                { text: "Not Applicable", width: 80, index: "NotApplicable" },
-                { text: "In Progress", width: 80, index: "InProgress" },
-                { text: "Paused", width: 80, index: "Paused" },
-                { text: "Blocked", width: 80, index: "Blocked" }
-            ]
-        };
-        let target = Controls.create(Grids.Grid, container, gridTestSuiteOptions);
-        target.setDataSource(SumSuites);
+        let tableContainer = $("#table-container").addClass("tableTest");
+        let container = $("<table />");
+        let trH = $("<tr />").addClass("tableTR");
+        trH.append($("<th />").text("Suite Name").addClass("tableTH"));
+        trH.append($("<th />").text("Total").addClass("tableTH"));
+        trH.append($("<th />").text("Passed").addClass("tableTH"));
+        trH.append($("<th />").text("Failed").addClass("tableTH"));
+        trH.append($("<th />").text("Not Run").addClass("tableTH"));
+        trH.append($("<th />").text("Not Applicable").addClass("tableTH"));
+        trH.append($("<th />").text("In Progress").addClass("tableTH"));
+        trH.append($("<th />").text("Paused").addClass("tableTH"));
+        trH.append($("<th />").text("Blocked").addClass("tableTH"));
+        container.append(trH);
+        let trClass = "tableTR";
+        let count = 0;
+        SumSuites.forEach(suite => {
+            count++;
+            let trD = $("<tr />").addClass(trClass + (count % 2));
+            trD.append($("<td />").text(suite.SuiteName).addClass("leftTableTD"));
+            trD.append($("<td />").text(suite.totalPoints).addClass("tableTD"));
+            trD.append($("<td />").text(suite.Passed).addClass("tableTD"));
+            trD.append($("<td />").text(suite.Failed).addClass("tableTD"));
+            trD.append($("<td />").text(suite.NotRun).addClass("tableTD"));
+            trD.append($("<td />").text(suite.NotApplicable).addClass("tableTD"));
+            trD.append($("<td />").text(suite.InProgress).addClass("tableTD"));
+            trD.append($("<td />").text(suite.Paused).addClass("tableTD"));
+            trD.append($("<td />").text(suite.Blocked).addClass("tableTD"));
+            tableContainer.empty();
+            container.append(trD);
+        });
         tableContainer.append(container);
     }
     function BuildGraphs(SumSuites) {
@@ -590,7 +588,7 @@ define(["require", "exports", "VSS/Controls/Grids", "VSS/Controls", "Charts/Serv
         $container.append($firstLine);
         let $table = $("<table />");
         $table.addClass("scroller");
-        $table.css("height", "100%");
+        $table.css("height", "80%");
         let $secondLine = $("<tr />");
         $secondLine.css("vertical-align", "bottom");
         let $therdLine = $("<tr />");

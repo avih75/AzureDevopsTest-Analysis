@@ -30,10 +30,11 @@
     color: cyan;
 }
 
-.TestSuit {
+
+/* .TestSuit {
     scroll-behavior: unset;
     border: khaki;
-}
+} */
 
 .TestPoint {
     border-left: solid;
@@ -61,6 +62,42 @@
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
+}
+
+.tableTest {
+    padding: 15px;
+}
+
+.PlanInfos {
+    margin: 10px;
+    padding: 10px;
+}
+
+.tableTD {
+    font-size: 16px;
+    text-align: center;
+}
+
+.tableTH {
+    text-align: center;
+    padding-left: 10px;
+    padding-right: 10px;
+    background-color: lightslategray;
+    font-size: 20px;
+}
+
+.tableTR0 {
+    background-color: rgb(180, 178, 178);
+}
+
+.leftTableTD {
+    background-color: lightslategray;
+    font-size: 16px;
+    padding-left: 10px;
+}
+
+.tableTR1 {
+    background-color: rgb(212, 211, 211);
 }
 
 .caret::before {
@@ -172,8 +209,16 @@
     top: 50%;
 }
 
+.calculatingGif {
+    position: absolute;
+    height: 100px;
+    width: 100px;
+    left: 40%;
+    top: 50%;
+}
+
 .scroller {
-    overflow: "auto";
+    /* overflow: "auto"; */
     vertical-align: "top"
 }
 
