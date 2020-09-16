@@ -909,10 +909,13 @@ function BuildSpecialStuiteList(emptySuiteList: Array<string>, fullPassList: Arr
     let smallTable: JQuery = $("<table/>");
     let haderLine = $("<tr/>");
     let hader1 = $("<th/>");
+    hader1.css("font-size","large");
     hader1.append("Empty Suites");
     let hader2 = $("<th/>");
+    hader2.css("font-size","large");
     hader2.append("Passed Suites");
     let hader3 = $("<th/>");
+    hader3.css("font-size","large");
     hader3.append("Opened Suites");
     haderLine.append(hader1);
     haderLine.append(hader2);
@@ -920,10 +923,13 @@ function BuildSpecialStuiteList(emptySuiteList: Array<string>, fullPassList: Arr
     smallTable.append(haderLine);
     let listLine = $("<tr/>");
     let emptyList = $("<td/>");
+    emptyList.css("vertical-align", "text-top");
     emptyList.append(CreateSepicalList(emptySuiteList));
     let finishedList = $("<td/>");
+    finishedList.css("vertical-align", "text-top");
     finishedList.append(CreateSepicalList(fullPassList));
     let opendeList = $("<td/>");
+    opendeList.css("vertical-align", "text-top");
     opendeList.append(CreateSepicalList(unFinishedList));
     listLine.append(emptyList);
     listLine.append(finishedList);
@@ -938,12 +944,14 @@ function CreateSepicalList(SuiteList: Array<string>) {
         SuiteList.forEach(Suite => {
             let $liSuite = $("<li />");
             $liSuite.text(Suite);
-            $liSuite.css("font-size", "large");
+            $liSuite.css("font-size", "medium");
             $liSuite.css("vertical-align", "text-top");
             $container.append($liSuite)
         });
     }
-    $container.css("border", "1px solid black");
+    $container.css("border", "1px solid gray");
+    $container.css("padding-right", "10px");
+    $container.css("margin-left", "5px");
     let $list = $("<div />");
     $list.css("vertical-align", "text-top");
     $list.append($container);

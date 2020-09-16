@@ -1,7 +1,7 @@
 {
     "manifestVersion": 1,
     "id": "Test-Analysis",
-    "version": "1.0.544",
+    "version": "1.0.549",
     "name": "Solution to Analizes your Tests",
     "description": "Interactive Test Plan Analysis.",
     "publisher": "AviHadad",
