@@ -15,6 +15,9 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
     let palnInfoExcell = new Array();
     const csvFileName = "Export.csv";
     let selectedId = 0;
+    let GraphA;
+    let GraphB;
+    let graphDiv;
     class TestPointModel {
     }
     class TestCaseModel {
@@ -22,6 +25,25 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
     class TestSuiteModel {
     }
     class SumeSuite {
+        constructor(name) {
+            this.SuiteName = name;
+            this.Blocked = 0;
+            this.Failed = 0;
+            this.InProgress = 0;
+            this.NotApplicable = 0;
+            this.NotRun = 0;
+            this.Passed = 0;
+            this.Paused = 0;
+            this.totalPoints = 0;
+            this.suiteLevel = 0;
+            this.TotalPassed = 0;
+            this.TotalFailed = 0;
+            this.TotalNotRun = 0;
+            this.TotalNotApplicable = 0;
+            this.TotalInProgress = 0;
+            this.TotalPaused = 0;
+            this.TotalBlocked = 0;
+        }
     }
     function CreateCalculateImgDiv(image) {
         let $calculateDiv = $("<div />");
@@ -160,7 +182,7 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
         $("#graph-container").append(CreateCalculateImgDiv("Graph"));
         testClient.getTestSuitesForPlan(projectName, +selectedPlan).then((suites) => __awaiter(this, void 0, void 0, function* () {
             ShowInfos(projectName, +selectedPlan, selectPlan);
-            yield BuildTestsSum(suites);
+            yield BuildTestsSumSuites(suites);
             BuildTableTestGrid(projectName, +selectedPlan, selectPlan, suites);
         }));
     }
@@ -206,27 +228,31 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
     function GetTestSuites(suites, projectName, testPlanId) {
         return __awaiter(this, void 0, void 0, function* () {
             let planFullInfo = new Array();
-            for (const suite of suites) {
-                let newSuite = new TestSuiteModel();
-                newSuite.suiteId = suite.id;
-                try {
-                    newSuite.perentId = suite.parent.id;
-                    newSuite.testSuiteLevel = -1;
-                }
-                catch (_a) {
-                    newSuite.perentId = "0";
-                    newSuite.testSuiteLevel = 0;
-                }
-                ;
-                newSuite.allTestCases = suite.testCaseCount;
-                newSuite.suiteName = suite.name;
-                newSuite.suiteType = suite.suiteType;
-                newSuite.testCaseCount = suite.testCaseCount;
-                newSuite.suiteState = suite.state;
-                newSuite.childrenSuites = Array();
-                newSuite.testPointList = yield GetTestPointsV2(projectName, testPlanId, suite.id);
-                planFullInfo.push(newSuite);
-            }
+            let promisss = new Array();
+            suites.forEach(suite => {
+                promisss.push(GetTestPointsV2(projectName, testPlanId, suite.id).then((testPoints) => {
+                    let newSuite = new TestSuiteModel();
+                    newSuite.suiteId = suite.id;
+                    try {
+                        newSuite.perentId = suite.parent.id;
+                        newSuite.testSuiteLevel = -1;
+                    }
+                    catch (_a) {
+                        newSuite.perentId = "0";
+                        newSuite.testSuiteLevel = 0;
+                    }
+                    ;
+                    newSuite.allTestCases = suite.testCaseCount;
+                    newSuite.suiteName = suite.name;
+                    newSuite.suiteType = suite.suiteType;
+                    newSuite.testCaseCount = suite.testCaseCount;
+                    newSuite.suiteState = suite.state;
+                    newSuite.childrenSuites = Array();
+                    newSuite.testPointList = testPoints;
+                    planFullInfo.push(newSuite);
+                }));
+            });
+            yield Promise.all(promisss);
             return planFullInfo;
         });
     }
@@ -451,19 +477,9 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
         }
         return textSpan;
     }
-    function BuildTestsSum(suites) {
+    function BuildTestsSumSuites(suites) {
         return __awaiter(this, void 0, void 0, function* () {
-            let totalTests = new SumeSuite();
-            totalTests.SuiteName = "Total";
-            totalTests.Blocked = 0;
-            totalTests.Failed = 0;
-            totalTests.InProgress = 0;
-            totalTests.NotApplicable = 0;
-            totalTests.NotRun = 0;
-            totalTests.Passed = 0;
-            totalTests.Paused = 0;
-            totalTests.totalPoints = 0;
-            totalTests.suiteLevel = 0;
+            let totalTests = new SumeSuite("Total");
             let SumSuites = new Array();
             let promisss = new Array();
             suites.forEach(suite => {
@@ -479,31 +495,33 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
                     SumSuites.push(newSuite);
                 }));
             });
-            let x = Promise.all(promisss).then(() => __awaiter(this, void 0, void 0, function* () {
+            let x = Promise.all(promisss).then(() => {
+                CountSuites(SumSuites);
                 SumSuites.sort((a, b) => b.totalPoints - a.totalPoints);
                 SumSuites.push(totalTests);
                 SumSuitesforExecell = SumSuites;
-                yield BuildGraphs(SumSuites);
-                BuildTestsView(SumSuites);
-            }));
+                BuildGraphs(SumSuites);
+                BuildTableView(SumSuites);
+            });
         });
     }
     function GetSuiteSum(suite) {
         return __awaiter(this, void 0, void 0, function* () {
-            let suiteSum = new SumeSuite();
+            let suiteSum = new SumeSuite(suite.name);
+            if (suite.defaultTesters != undefined && suite.defaultTesters.length > 0)
+                suiteSum.AssignTo = suite.defaultTesters[0].name;
+            else
+                suiteSum.AssignTo = "Un assigned";
             palnInfoExcell.forEach(element => {
-                if (element.suiteName == suite.name)
+                if (element.suiteName == suite.name) {
                     suiteSum.suiteLevel = element.testSuiteLevel;
+                }
             });
-            suiteSum.SuiteName = suite.name;
-            suiteSum.Blocked = 0;
-            suiteSum.Paused = 0;
-            suiteSum.Passed = 0;
-            suiteSum.Failed = 0;
-            suiteSum.NotRun = 0;
-            suiteSum.NotApplicable = 0;
-            suiteSum.InProgress = 0;
+            if (suite.parent != undefined)
+                suiteSum.ParentID = suite.parent.id;
+            suiteSum.TotalIncludeChildren = suite.testCaseCount;
             suiteSum.totalPoints = suite.testCaseCount;
+            suiteSum.SuiteId = suite.id;
             let points = yield testClient.getPoints(suite.project.name, +suite.plan.id, suite.id);
             for (const point of points) {
                 switch (point.outcome) {
@@ -541,7 +559,43 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
             return suiteSum;
         });
     }
-    function BuildTestsView(SumSuites) {
+    function CountSuites(SumSuites) {
+        SumSuites.forEach(suite => {
+            if (suite.ParentID == undefined)
+                RecursiveSum(suite, SumSuites);
+        });
+    }
+    function RecursiveSum(suite, SumSuites) {
+        let childerList = GetChildren(suite.SuiteId, SumSuites);
+        suite.TotalBlocked = suite.Blocked;
+        suite.TotalFailed = suite.Failed;
+        suite.TotalInProgress = suite.InProgress;
+        suite.TotalNotApplicable = suite.NotApplicable;
+        suite.TotalNotRun = suite.NotRun;
+        suite.TotalPassed = suite.Passed;
+        suite.TotalPaused = suite.Paused;
+        if (childerList.length > 0) {
+            childerList.forEach(childe => {
+                RecursiveSum(childe, SumSuites);
+                suite.TotalBlocked += childe.TotalBlocked;
+                suite.TotalFailed += childe.TotalFailed;
+                suite.TotalInProgress += childe.TotalInProgress;
+                suite.TotalNotApplicable += childe.TotalNotApplicable;
+                suite.TotalNotRun += childe.TotalNotRun;
+                suite.TotalPassed += childe.TotalPassed;
+                suite.TotalPaused += childe.TotalPaused;
+            });
+        }
+    }
+    function GetChildren(SuiteToCheck, SumSuites) {
+        let childrenList = new Array();
+        SumSuites.forEach(suite => {
+            if (suite.ParentID == SuiteToCheck.toString())
+                childrenList.push(suite);
+        });
+        return childrenList;
+    }
+    function BuildTableView(SumSuites) {
         let tableContainer = $("#table-container").addClass("tableTest");
         let container = $("<table />");
         let trH = $("<tr />").addClass("tableTR");
@@ -569,9 +623,9 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
             trD.append($("<td />").text(suite.InProgress).addClass("tableTD"));
             trD.append($("<td />").text(suite.Paused).addClass("tableTD"));
             trD.append($("<td />").text(suite.Blocked).addClass("tableTD"));
-            tableContainer.empty();
             container.append(trD);
         });
+        tableContainer.empty();
         tableContainer.append(container);
     }
     function BuildGraphs(SumSuites) {
@@ -582,9 +636,10 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
         $container.css("height", "100%");
         $container.empty();
         $container.append($radioButtons);
-        let $spanMainChart = $("<span />");
+        let $spanMainChartA = $("<span />");
+        let $spanMainChartB = $("<span />");
         let $firstLine = $("<div />");
-        $firstLine.append($spanMainChart);
+        graphDiv = $firstLine;
         $container.append($firstLine);
         let $table = $("<table />");
         $table.addClass("scroller");
@@ -595,35 +650,43 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
         $therdLine.css("height", "90%");
         $therdLine.addClass("scroller");
         $therdLine.css("vertical-align", "top");
-        let $selectedPieLabell = $("<td />");
-        $selectedPieLabell.text("Selected Suite");
-        $selectedPieLabell.addClass("graphLabels");
         let $totalLabell = $("<td />");
-        $totalLabell.text("Total Suites");
+        $totalLabell.text("Total Test Cases");
         $totalLabell.addClass("graphLabels");
-        let $emptySuiteLabell = $("<td />");
-        $emptySuiteLabell.text("Empty Suites");
-        $emptySuiteLabell.addClass("graphLabels");
+        let $selectedPieLabell = $("<td />");
+        $selectedPieLabell.text("Isolated Test Cases");
+        $selectedPieLabell.addClass("graphLabels");
+        let $selectedAggPieLabell = $("<td />");
+        $selectedAggPieLabell.text("Aggregate Tests Cases");
+        $selectedAggPieLabell.addClass("graphLabels");
+        let $SuitesList = $("<td />");
+        $SuitesList.text("List Suites");
+        $SuitesList.addClass("graphLabels");
         let $selectedChart = $("<td />");
         $selectedChart.addClass("graphLabels");
         $secondLine.append($totalLabell);
+        $secondLine.append($selectedAggPieLabell);
         $secondLine.append($selectedPieLabell);
-        $secondLine.append($emptySuiteLabell);
+        $secondLine.append($SuitesList);
         $secondLine.append($selectedChart);
         let $spanTotalPie = $("<span />");
-        let $spanDynamiclPie = $("<span />");
+        let $spanDynamiclPieA = $("<span />");
+        let $spanDynamiclPieB = $("<span />");
         let $spanEmptySuites = $("<span />");
         let $spanSelectedChart = $("<span />");
         let $totalSuitesPie = $("<td />");
-        let $selectedSuitePie = $("<td />");
+        let $selectedSuitePieB = $("<td />");
+        let $selectedSuitePieA = $("<td />");
         let $selectedSuiteChart = $("<td />");
         let $emptySuitt = $("<td />");
         $totalSuitesPie.append($spanTotalPie);
-        $selectedSuitePie.append($spanDynamiclPie);
+        $selectedSuitePieB.append($spanDynamiclPieA);
+        $selectedSuitePieA.append($spanDynamiclPieB);
         $emptySuitt.append($spanEmptySuites);
         $selectedSuiteChart.append($spanSelectedChart);
         $therdLine.append($totalSuitesPie);
-        $therdLine.append($selectedSuitePie);
+        $therdLine.append($selectedSuitePieA);
+        $therdLine.append($selectedSuitePieB);
         $therdLine.append($emptySuitt);
         $therdLine.append($selectedSuiteChart);
         let $secDev = $("<div />");
@@ -632,9 +695,12 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
         $secDev.append($table);
         $container.append($secDev);
         let cakeGraphId = SumSuites.length - 1;
-        BuildStackedColumnChart(SumSuites, $spanMainChart, $spanDynamiclPie, $spanEmptySuites, Colorize());
-        BuildPieChart(SumSuites[0], $spanDynamiclPie, "Total Suits", Colorize());
-        BuildPieChart(SumSuites[cakeGraphId], $spanTotalPie, "Selected Suits", Colorize());
+        BuildStackedColumnChart(SumSuites, $spanMainChartA, $spanDynamiclPieA, $spanDynamiclPieB, $spanEmptySuites, Colorize(), true);
+        BuildStackedColumnChart(SumSuites, $spanMainChartB, $spanDynamiclPieA, $spanDynamiclPieB, $spanEmptySuites, Colorize(), false);
+        SetGraphView();
+        BuildPieChart(SumSuites[0], $spanDynamiclPieA, "Total Suits", Colorize(), true);
+        BuildPieChart(SumSuites[0], $spanDynamiclPieB, "Total Suits", Colorize(), false);
+        BuildPieChart(SumSuites[cakeGraphId], $spanTotalPie, "Selected Suits", Colorize(), true);
     }
     function Colorize() {
         let colorPass = {
@@ -654,7 +720,7 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
             value: 'In Progress'
         };
         let colorInNotApplicable = {
-            backgroundColor: 'White',
+            backgroundColor: 'Yellow',
             value: 'Not Applicable'
         };
         let colors = new Array();
@@ -668,7 +734,7 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
         };
         return colorize;
     }
-    function BuildStackedColumnChart(SumSuites, $graphSpan, $dinamicPieSpan, $emptySuite, colorize) {
+    function BuildStackedColumnChart(SumSuites, $graphSpan, $dinamicPieSpanA, $dinamicPieSpanB, $emptySuite, colorize, isIsolate) {
         let deep = $('#deep').is(":checked");
         let howDeep = $("#level").val();
         let Paused = [];
@@ -680,20 +746,45 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
         let InProgress = [];
         let labels = [];
         let emptySuites = [];
+        let unFinishedSuites = [];
+        let fullPassSuites = [];
         for (let i = 0; i < SumSuites.length - 1; i++) {
             if (deep == true || SumSuites[i].suiteLevel <= howDeep) {
                 if (SumSuites[i].totalPoints > 0) {
                     labels.push(SumSuites[i].SuiteName);
-                    Passed.push([i, SumSuites[i].Passed]);
-                    Failed.push([i, SumSuites[i].Failed]);
-                    NotRun.push([i, SumSuites[i].NotRun]);
-                    InProgress.push([i, SumSuites[i].InProgress]);
-                    NotApplicable.push([i, SumSuites[i].NotApplicable]);
-                    Paused.push([i, SumSuites[i].Paused]);
-                    Blocked.push([i, SumSuites[i].Blocked]);
+                    if (isIsolate) {
+                        Passed.push([i, SumSuites[i].Passed]);
+                        Failed.push([i, SumSuites[i].Failed]);
+                        NotRun.push([i, SumSuites[i].NotRun]);
+                        InProgress.push([i, SumSuites[i].InProgress]);
+                        NotApplicable.push([i, SumSuites[i].NotApplicable]);
+                        Paused.push([i, SumSuites[i].Paused]);
+                        Blocked.push([i, SumSuites[i].Blocked]);
+                        if (SumSuites[i].totalPoints == SumSuites[i].Passed) {
+                            fullPassSuites.push(SumSuites[i].SuiteName + " :" + SumSuites[i].AssignTo);
+                        }
+                        if (SumSuites[i].NotRun > 0) {
+                            unFinishedSuites.push(SumSuites[i].SuiteName + " :" + SumSuites[i].AssignTo);
+                        }
+                    }
+                    else {
+                        Passed.push([i, SumSuites[i].TotalPassed]);
+                        Failed.push([i, SumSuites[i].TotalFailed]);
+                        NotRun.push([i, SumSuites[i].TotalNotRun]);
+                        InProgress.push([i, SumSuites[i].TotalInProgress]);
+                        NotApplicable.push([i, SumSuites[i].TotalNotApplicable]);
+                        Paused.push([i, SumSuites[i].TotalPaused]);
+                        Blocked.push([i, SumSuites[i].TotalBlocked]);
+                        if (SumSuites[i].TotalIncludeChildren == SumSuites[i].TotalPassed) {
+                            fullPassSuites.push(SumSuites[i].SuiteName + " :" + SumSuites[i].AssignTo);
+                        }
+                        if (SumSuites[i].TotalNotRun > 0) {
+                            unFinishedSuites.push(SumSuites[i].SuiteName + " :" + SumSuites[i].AssignTo);
+                        }
+                    }
                 }
                 else {
-                    emptySuites.push(SumSuites[i].SuiteName);
+                    emptySuites.push(SumSuites[i].SuiteName + " :" + SumSuites[i].AssignTo);
                 }
             }
         }
@@ -744,38 +835,94 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
             },
             "series": series,
             "click": (clickeEvent) => {
-                $dinamicPieSpan.empty();
-                BuildPieChart(SumSuites[clickeEvent.seriesDataIndex], $dinamicPieSpan, "Selected suits", colorize);
+                $dinamicPieSpanA.empty();
+                $dinamicPieSpanB.empty();
+                BuildPieChart(SumSuites[clickeEvent.seriesDataIndex], $dinamicPieSpanA, "Selected suits", colorize, true);
+                BuildPieChart(SumSuites[clickeEvent.seriesDataIndex], $dinamicPieSpanB, "Selected suits", colorize, false);
             },
         };
-        BuildEmptyStuiteList(emptySuites, $emptySuite);
+        if (isIsolate) {
+            BuildSpecialStuiteList(emptySuites, fullPassSuites, unFinishedSuites, $emptySuite);
+            GraphA = $graphSpan;
+        }
+        else {
+            GraphB = $graphSpan;
+        }
         Services.ChartsService.getService().then((chartService) => {
             chartService.createChart($graphSpan, chartStackedColumnOptions);
         });
     }
-    function BuildEmptyStuiteList(emptySuiteList, $emptySuite) {
-        let $mainContainer = $("<div />");
-        $mainContainer.css("vertical-align", "text-top");
+    function BuildSpecialStuiteList(emptySuiteList, fullPassList, unFinishedList, $spwcialLists) {
+        let smallTable = $("<table/>");
+        let haderLine = $("<tr/>");
+        let hader1 = $("<th/>");
+        hader1.append("Empty Suites");
+        let hader2 = $("<th/>");
+        hader2.append("Passed Suites");
+        let hader3 = $("<th/>");
+        hader3.append("Opened Suites");
+        haderLine.append(hader1);
+        haderLine.append(hader2);
+        haderLine.append(hader3);
+        smallTable.append(haderLine);
+        let listLine = $("<tr/>");
+        let emptyList = $("<td/>");
+        emptyList.append(CreateSepicalList(emptySuiteList));
+        let finishedList = $("<td/>");
+        finishedList.append(CreateSepicalList(fullPassList));
+        let opendeList = $("<td/>");
+        opendeList.append(CreateSepicalList(unFinishedList));
+        listLine.append(emptyList);
+        listLine.append(finishedList);
+        listLine.append(opendeList);
+        smallTable.append(listLine);
+        $spwcialLists.append(smallTable);
+    }
+    function CreateSepicalList(SuiteList) {
         let $container = $("<ul />");
         $container.css("vertical-align", "text-top");
-        if (emptySuiteList.length > 0) {
-            emptySuiteList.forEach(Suite => {
+        if (SuiteList.length > 0) {
+            SuiteList.forEach(Suite => {
                 let $liSuite = $("<li />");
                 $liSuite.text(Suite);
                 $liSuite.css("font-size", "large");
                 $liSuite.css("vertical-align", "text-top");
                 $container.append($liSuite);
             });
-            $container.css("overflow", "scroll");
-            $container.css("border", "1px solid black");
-            $mainContainer.append($container);
-            $emptySuite.append($mainContainer);
         }
+        $container.css("border", "1px solid black");
+        let $list = $("<div />");
+        $list.css("vertical-align", "text-top");
+        $list.append($container);
+        return $list;
     }
-    function BuildPieChart(selectedSuite, $rightGraph, title, colorize) {
+    function BuildPieChart(selectedSuite, $rightGraph, title, colorize, isIsolate) {
         let legend = {
             enabled: false
         };
+        let data;
+        if (isIsolate) {
+            data = [
+                selectedSuite.Paused,
+                selectedSuite.Blocked,
+                selectedSuite.NotApplicable,
+                selectedSuite.Passed,
+                selectedSuite.Failed,
+                selectedSuite.InProgress,
+                selectedSuite.NotRun
+            ];
+        }
+        else {
+            data = [
+                selectedSuite.TotalPaused,
+                selectedSuite.TotalBlocked,
+                selectedSuite.TotalNotApplicable,
+                selectedSuite.TotalPassed,
+                selectedSuite.TotalFailed,
+                selectedSuite.TotalInProgress,
+                selectedSuite.TotalNotRun
+            ];
+        }
         let chartPieOptions = {
             "title": title,
             "suppressMargin": true,
@@ -791,15 +938,7 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
                 labelValues: ["Paused", "Blocked", "Not Applicable", "Passed", "Failed", "In Progress", "Not Run"]
             },
             "series": [{
-                    "data": [
-                        selectedSuite.Paused,
-                        selectedSuite.Blocked,
-                        selectedSuite.NotApplicable,
-                        selectedSuite.Passed,
-                        selectedSuite.Failed,
-                        selectedSuite.InProgress,
-                        selectedSuite.NotRun
-                    ]
+                    data
                 }],
             "specializedOptions": {
                 showLabels: true,
@@ -808,6 +947,32 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
         };
         Services.ChartsService.getService().then((chartService) => {
             chartService.createChart($rightGraph, chartPieOptions);
+        });
+    }
+    function SetGraphView() {
+        let $switchView = $("#switchView");
+        if ($switchView.text() != "Aggregate View") {
+            $switchView.text("Aggregate View");
+            GraphB.remove();
+            graphDiv.append(GraphA);
+        }
+        else {
+            $switchView.text("Isolated View");
+            GraphA.remove();
+            graphDiv.append(GraphB);
+        }
+        $switchView.click(() => {
+            let $switchView = $("#switchView");
+            if ($switchView.text() == "Aggregate View") {
+                $switchView.text("Isolated View");
+                GraphA.remove();
+                graphDiv.append(GraphB);
+            }
+            else {
+                $switchView.text("Aggregate View");
+                GraphB.remove();
+                graphDiv.append(GraphA);
+            }
         });
     }
     var id = VSS.getContribution().id;

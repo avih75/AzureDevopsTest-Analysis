@@ -5,7 +5,7 @@
 
 .selectPlan {
     font-size: larger;
-    color: cyan;
+    color: inherit;
 }
 
 .selectTitle {
@@ -27,7 +27,7 @@
     flex-wrap: wrap;
     padding: 180px;
     font-size: xx-large;
-    color: cyan;
+    color: inherit;
 }
 
 
@@ -38,13 +38,13 @@
 
 .TestPoint {
     border-left: solid;
-    background-color: ivory;
+    background-color: inherit;
     scroll-behavior: unset;
 }
 
 .MainTableDiv {
     border-top-style: groove;
-    border-color: rosybrown;
+    border-color: inherit;
 }
 
 .PlainMainInfo {
@@ -82,22 +82,22 @@
     text-align: center;
     padding-left: 10px;
     padding-right: 10px;
-    background-color: lightslategray;
+    background-color: rgb(175, 177, 180);
     font-size: 20px;
 }
 
 .tableTR0 {
-    background-color: rgb(180, 178, 178);
-}
-
-.leftTableTD {
-    background-color: lightslategray;
-    font-size: 16px;
-    padding-left: 10px;
+    background-color: rgb(212, 209, 209);
 }
 
 .tableTR1 {
-    background-color: rgb(212, 211, 211);
+    background-color: rgb(148, 148, 148);
+}
+
+.leftTableTD {
+    background-color: rgb(175, 177, 180);
+    font-size: 16px;
+    padding-left: 10px;
 }
 
 .caret::before {
@@ -134,27 +134,27 @@
 
 .testLableInfo {
     font-size: medium;
-    color: gray;
+    opacity: 0.8;
     padding-right: 5px;
 }
 
 .testInfo {
     width: auto;
     font-size: medium;
-    color: cyan;
+    color: inherit;
     padding-right: 15px;
 }
 
 .suitLable {
     font-size: medium;
-    color: gray;
+    opacity: 0.8;
     padding-right: 5px;
 }
 
 .suitInfo {
     width: auto;
     font-size: medium;
-    color: cyan;
+    color: inherit;
     padding-right: 15px;
 }
 
@@ -164,7 +164,7 @@
 }
 
 .planeLable {
-    color: cornflowerblue;
+    opacity: 0.8;
     font-size: large;
     padding-right: 5px;
 }
@@ -195,7 +195,7 @@
 }
 
 .graphLabels {
-    color: cyan;
+    color: inherit;
     font-size: x-large;
     vertical-align: text-top;
     text-align-last: center;

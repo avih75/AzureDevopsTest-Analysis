@@ -1,7 +1,7 @@
 import Services = require("Charts/Services");
 import TestRestClient = require("TFS/TestManagement/RestClient");
 import { TestPlan, TestSuite, TestPoint, TestRun } from "TFS/TestManagement/Contracts";
-import { CommonChartOptions, ChartTypesConstants, ClickEvent, LegendOptions, TooltipOptions, ColorCustomizationOptions, ColorEntry } from "Charts/Contracts";
+import { CommonChartOptions, ChartTypesConstants, ClickEvent, LegendOptions, TooltipOptions, ColorCustomizationOptions, ColorEntry, ChartHostOptions, PieChartOptions, LabelFormatModes } from "Charts/Contracts";
 import { CsvDataService } from "./CsvHelper";
 import { GetLastTimeValue, SetValue } from "./storageHelper";
 import { WorkItemExpand, WorkItem } from "TFS/WorkItemTracking/Contracts";
@@ -13,6 +13,9 @@ let SumSuitesforExecell: Array<SumeSuite>;
 let palnInfoExcell: Array<TestSuiteModel> = new Array<TestSuiteModel>();
 const csvFileName: string = "Export.csv";
 let selectedId: number = 0;
+let GraphA: JQuery;
+let GraphB: JQuery;
+let graphDiv: JQuery;
 class TestPointModel {
     id: string;
     FaildStep: string;
@@ -41,7 +44,7 @@ class TestCaseModel {
     assignedTo: string;
     comment: string;
     failureType: string;
-}class TestSuiteModel {
+} class TestSuiteModel {
     suiteId: number;
     perentId: string;
     suiteName: string;
@@ -54,16 +57,46 @@ class TestCaseModel {
     allTestCases: number;
     testSuiteLevel: number;
 } class SumeSuite {
+    constructor(name: string) {
+        this.SuiteName = name;
+        this.Blocked = 0
+        this.Failed = 0
+        this.InProgress = 0
+        this.NotApplicable = 0
+        this.NotRun = 0
+        this.Passed = 0
+        this.Paused = 0
+        this.totalPoints = 0
+        this.suiteLevel = 0
+        this.TotalPassed = 0;
+        this.TotalFailed = 0;
+        this.TotalNotRun = 0;
+        this.TotalNotApplicable = 0;
+        this.TotalInProgress = 0;
+        this.TotalPaused = 0;
+        this.TotalBlocked = 0;
+    }
+    SuiteId: number;
     SuiteName: string;
     Passed: number;
     Failed: number;
     NotRun: number;
-    totalPoints: number;
     NotApplicable: number;
     InProgress: number;
     Paused: number;
     Blocked: number;
+    TotalPassed: number;
+    TotalFailed: number;
+    TotalNotRun: number;
+    TotalNotApplicable: number;
+    TotalInProgress: number;
+    TotalPaused: number;
+    TotalBlocked: number;
+    totalPoints: number;
     suiteLevel: number;
+    ParentID: string;
+    TotalIncludeChildren: number;
+    AssignTo: string;
 }
 function CreateCalculateImgDiv(image: string) {
     let $calculateDiv = $("<div />");
@@ -92,6 +125,7 @@ async function Init_Page(): Promise<void> {
     $("#graph-container").css("overflow-x", 'auto');
     $("#graph-container").addClass("scroller")
     $("#level").val(0);
+
     let $excellButton = $("#excellButton");
     $excellButton.click(() => {
         CsvDataService.exportToCsv(csvFileName, SumSuitesforExecell);
@@ -199,8 +233,8 @@ function RunBuilds(projectName: string, selectedPlan: string, selectPlan: JQuery
     $("#graph-container").append(CreateCalculateImgDiv("Graph"));
     testClient.getTestSuitesForPlan(projectName, +selectedPlan).then(async (suites: TestSuite[]) => {
         ShowInfos(projectName, +selectedPlan, selectPlan);
-        await BuildTestsSum(suites);  // run the graph pad and the then the test view pad
-        BuildTableTestGrid(projectName, +selectedPlan, selectPlan, suites);
+        await BuildTestsSumSuites(suites);  // run the graphs pad #1 and the then the table test view pad #3
+        BuildTableTestGrid(projectName, +selectedPlan, selectPlan, suites); // run the tree view pad #2
     });
 }
 function ShowInfos(projectName: string, testPlanId: number, selectPlan: JQuery) {
@@ -244,27 +278,30 @@ function BuildTableTestGrid(projectName: string, testPlanId: number, selectPlan:
 }
 async function GetTestSuites(suites: TestSuite[], projectName: string, testPlanId: number) {
     let planFullInfo: Array<TestSuiteModel> = new Array<TestSuiteModel>();
-    // convert back to foreach and dont use await.... put await all in the end
-    for (const suite of suites) {
-        let newSuite: TestSuiteModel = new TestSuiteModel();
-        newSuite.suiteId = suite.id;
-        try {
-            newSuite.perentId = suite.parent.id;
-            newSuite.testSuiteLevel = -1;
-        }
-        catch {
-            newSuite.perentId = "0";
-            newSuite.testSuiteLevel = 0;
-        };
-        newSuite.allTestCases = suite.testCaseCount;
-        newSuite.suiteName = suite.name;
-        newSuite.suiteType = suite.suiteType;
-        newSuite.testCaseCount = suite.testCaseCount;
-        newSuite.suiteState = suite.state;
-        newSuite.childrenSuites = Array<TestSuiteModel>();
-        newSuite.testPointList = await GetTestPointsV2(projectName, testPlanId, suite.id)  // try V2
-        planFullInfo.push(newSuite);
-    }
+    let promisss: Array<Promise<void>> = new Array<Promise<void>>();
+    suites.forEach(suite => {
+        promisss.push(GetTestPointsV2(projectName, testPlanId, suite.id).then((testPoints) => {
+            let newSuite: TestSuiteModel = new TestSuiteModel();
+            newSuite.suiteId = suite.id;
+            try {
+                newSuite.perentId = suite.parent.id;
+                newSuite.testSuiteLevel = -1;
+            }
+            catch {
+                newSuite.perentId = "0";
+                newSuite.testSuiteLevel = 0;
+            };
+            newSuite.allTestCases = suite.testCaseCount;
+            newSuite.suiteName = suite.name;
+            newSuite.suiteType = suite.suiteType;
+            newSuite.testCaseCount = suite.testCaseCount;
+            newSuite.suiteState = suite.state;
+            newSuite.childrenSuites = Array<TestSuiteModel>();
+            newSuite.testPointList = testPoints;
+            planFullInfo.push(newSuite);
+        }))
+    });
+    await Promise.all(promisss);
     return planFullInfo;
 }
 async function GetTestPointsV2(projectName: string, testPlanId: number, suiteId: number) {
@@ -320,9 +357,6 @@ async function GetAllTestRunsResults(projectName: string, testPoints: TestPoint[
                                             if (+steps.children[i].id == +actionResolt.actionPath) {
                                                 stepFaild = steps.children[i].textContent; + " ; " + actionResolt.comment + " ; "
                                                     + actionResolt.errorMessage;
-                                                // stepFaild = stepFaild.split('<Div>').join(" ").split('</DIV>').join(" ").split('<BR/>')
-                                                //                     .join(" ").split('<P>').join(" ").split('</P>').join(" ")
-                                                //                     .split('&nbsp').join(" "); 
                                             }
                                         }
                                     }
@@ -361,7 +395,7 @@ async function GetAllTestRunsResults(projectName: string, testPoints: TestPoint[
             configuration: testPoint.configuration.name
         }
         testPointsModel.push(testPointModel);
-    }//);
+    }
     return testPointsModel;
 }
 function ReArangeSuiteList(palneFullInfo: Array<TestSuiteModel>) {
@@ -495,20 +529,9 @@ function TextView(lable: any, size: number) {
     }
     return textSpan;
 }
-async function BuildTestsSum(suites: TestSuite[]) { 
-    let totalTests: SumeSuite = new SumeSuite();
-    totalTests.SuiteName = "Total";
-    totalTests.Blocked = 0
-    totalTests.Failed = 0
-    totalTests.InProgress = 0
-    totalTests.NotApplicable = 0
-    totalTests.NotRun = 0
-    totalTests.Passed = 0
-    totalTests.Paused = 0
-    totalTests.totalPoints = 0
-    totalTests.suiteLevel = 0
+async function BuildTestsSumSuites(suites: TestSuite[]) {
+    let totalTests: SumeSuite = new SumeSuite("Total");
     let SumSuites: Array<SumeSuite> = new Array<SumeSuite>();
-    //let rootName: string = "";
     let promisss: Array<Promise<void>> = new Array<Promise<void>>();
     suites.forEach(suite => {
         promisss.push(GetSuiteSum(suite).then((newSuite) => {
@@ -523,29 +546,31 @@ async function BuildTestsSum(suites: TestSuite[]) {
             SumSuites.push(newSuite);
         }))
     });
-    let x = Promise.all(promisss).then(async () => {
+    let x = Promise.all(promisss).then(() => {//async
+        CountSuites(SumSuites);
         SumSuites.sort((a: SumeSuite, b: SumeSuite) => b.totalPoints - a.totalPoints);
         SumSuites.push(totalTests);
         SumSuitesforExecell = SumSuites;
-        await BuildGraphs(SumSuites);
-        BuildTestsView(SumSuites);//.splice(0,SumSuites.length-2));
+        BuildGraphs(SumSuites); //await
+        BuildTableView(SumSuites);
     })
 }
 async function GetSuiteSum(suite: TestSuite) {
-    let suiteSum: SumeSuite = new SumeSuite();
+    let suiteSum: SumeSuite = new SumeSuite(suite.name);
+    if (suite.defaultTesters != undefined && suite.defaultTesters.length > 0)
+        suiteSum.AssignTo = suite.defaultTesters[0].name;
+    else
+        suiteSum.AssignTo = "Un assigned";
     palnInfoExcell.forEach(element => {
-        if (element.suiteName == suite.name)
+        if (element.suiteName == suite.name) {
             suiteSum.suiteLevel = element.testSuiteLevel;
+        }
     });
-    suiteSum.SuiteName = suite.name;
-    suiteSum.Blocked = 0
-    suiteSum.Paused = 0
-    suiteSum.Passed = 0
-    suiteSum.Failed = 0
-    suiteSum.NotRun = 0
-    suiteSum.NotApplicable = 0
-    suiteSum.InProgress = 0
+    if (suite.parent != undefined)
+        suiteSum.ParentID = suite.parent.id;
+    suiteSum.TotalIncludeChildren = suite.testCaseCount;
     suiteSum.totalPoints = suite.testCaseCount
+    suiteSum.SuiteId = suite.id;
     let points = await testClient.getPoints(suite.project.name, +suite.plan.id, suite.id);
     for (const point of points) {
         switch (point.outcome) {
@@ -581,7 +606,43 @@ async function GetSuiteSum(suite: TestSuite) {
     };
     return suiteSum;
 }
-function BuildTestsView(SumSuites: Array<SumeSuite>) {
+function CountSuites(SumSuites: SumeSuite[]) {
+    SumSuites.forEach(suite => {
+        if (suite.ParentID == undefined)
+            RecursiveSum(suite, SumSuites);
+    });
+}
+function RecursiveSum(suite: SumeSuite, SumSuites: SumeSuite[]) {
+    let childerList: SumeSuite[] = GetChildren(suite.SuiteId, SumSuites);
+    suite.TotalBlocked = suite.Blocked;
+    suite.TotalFailed = suite.Failed;
+    suite.TotalInProgress = suite.InProgress;
+    suite.TotalNotApplicable = suite.NotApplicable;
+    suite.TotalNotRun = suite.NotRun;
+    suite.TotalPassed = suite.Passed;
+    suite.TotalPaused = suite.Paused;
+    if (childerList.length > 0) {
+        childerList.forEach(childe => {
+            RecursiveSum(childe, SumSuites);
+            suite.TotalBlocked += childe.TotalBlocked;
+            suite.TotalFailed += childe.TotalFailed;
+            suite.TotalInProgress += childe.TotalInProgress;
+            suite.TotalNotApplicable += childe.TotalNotApplicable;
+            suite.TotalNotRun += childe.TotalNotRun;
+            suite.TotalPassed += childe.TotalPassed;
+            suite.TotalPaused += childe.TotalPaused;
+        });
+    }
+}
+function GetChildren(SuiteToCheck: number, SumSuites: SumeSuite[]) {
+    let childrenList: Array<SumeSuite> = new Array<SumeSuite>();
+    SumSuites.forEach(suite => {
+        if (suite.ParentID == SuiteToCheck.toString())
+            childrenList.push(suite);
+    })
+    return childrenList;
+}
+function BuildTableView(SumSuites: Array<SumeSuite>) {
     let tableContainer = $("#table-container").addClass("tableTest");
     let container: JQuery = $("<table />");
     let trH = $("<tr />").addClass("tableTR");
@@ -609,9 +670,9 @@ function BuildTestsView(SumSuites: Array<SumeSuite>) {
         trD.append($("<td />").text(suite.InProgress).addClass("tableTD"));
         trD.append($("<td />").text(suite.Paused).addClass("tableTD"));
         trD.append($("<td />").text(suite.Blocked).addClass("tableTD"));
-        tableContainer.empty();
         container.append(trD);
     });
+    tableContainer.empty();
     tableContainer.append(container);
 }
 function BuildGraphs(SumSuites: Array<SumeSuite>) {
@@ -624,9 +685,10 @@ function BuildGraphs(SumSuites: Array<SumeSuite>) {
 
     $container.append($radioButtons);
 
-    let $spanMainChart = $("<span />");
+    let $spanMainChartA = $("<span />");
+    let $spanMainChartB = $("<span />");
     let $firstLine = $("<div />");
-    $firstLine.append($spanMainChart);
+    graphDiv = $firstLine;
     $container.append($firstLine);
 
     let $table = $("<table />");
@@ -639,36 +701,44 @@ function BuildGraphs(SumSuites: Array<SumeSuite>) {
     $therdLine.addClass("scroller");
     $therdLine.css("vertical-align", "top");
 
-    let $selectedPieLabell = $("<td />");
-    $selectedPieLabell.text("Selected Suite");
-    $selectedPieLabell.addClass("graphLabels");
     let $totalLabell = $("<td />");
-    $totalLabell.text("Total Suites");
+    $totalLabell.text("Total Test Cases");
     $totalLabell.addClass("graphLabels");
-    let $emptySuiteLabell = $("<td />");
-    $emptySuiteLabell.text("Empty Suites");
-    $emptySuiteLabell.addClass("graphLabels");
+    let $selectedPieLabell = $("<td />");
+    $selectedPieLabell.text("Isolated Test Cases");
+    $selectedPieLabell.addClass("graphLabels");
+    let $selectedAggPieLabell = $("<td />");
+    $selectedAggPieLabell.text("Aggregate Tests Cases");
+    $selectedAggPieLabell.addClass("graphLabels");
+    let $SuitesList = $("<td />");
+    $SuitesList.text("List Suites");
+    $SuitesList.addClass("graphLabels");
     let $selectedChart = $("<td />");
     $selectedChart.addClass("graphLabels");
     $secondLine.append($totalLabell);
+    $secondLine.append($selectedAggPieLabell);
     $secondLine.append($selectedPieLabell);
-    $secondLine.append($emptySuiteLabell);
+    $secondLine.append($SuitesList);
     $secondLine.append($selectedChart);
 
     let $spanTotalPie = $("<span />");
-    let $spanDynamiclPie = $("<span />");
+    let $spanDynamiclPieA = $("<span />");
+    let $spanDynamiclPieB = $("<span />");
     let $spanEmptySuites = $("<span />");
     let $spanSelectedChart = $("<span />");
     let $totalSuitesPie = $("<td />");
-    let $selectedSuitePie = $("<td />");
+    let $selectedSuitePieB = $("<td />");
+    let $selectedSuitePieA = $("<td />");
     let $selectedSuiteChart = $("<td />");
     let $emptySuitt = $("<td />");
     $totalSuitesPie.append($spanTotalPie);
-    $selectedSuitePie.append($spanDynamiclPie);
+    $selectedSuitePieB.append($spanDynamiclPieA);
+    $selectedSuitePieA.append($spanDynamiclPieB);
     $emptySuitt.append($spanEmptySuites);
     $selectedSuiteChart.append($spanSelectedChart)
     $therdLine.append($totalSuitesPie);
-    $therdLine.append($selectedSuitePie);
+    $therdLine.append($selectedSuitePieA);
+    $therdLine.append($selectedSuitePieB);
     $therdLine.append($emptySuitt);
     $therdLine.append($selectedSuiteChart)
 
@@ -679,9 +749,12 @@ function BuildGraphs(SumSuites: Array<SumeSuite>) {
     $container.append($secDev);
     //
     let cakeGraphId = SumSuites.length - 1;
-    BuildStackedColumnChart(SumSuites, $spanMainChart, $spanDynamiclPie, $spanEmptySuites, Colorize());//, $selectedSuiteChart
-    BuildPieChart(SumSuites[0], $spanDynamiclPie, "Total Suits", Colorize());
-    BuildPieChart(SumSuites[cakeGraphId], $spanTotalPie, "Selected Suits", Colorize());
+    BuildStackedColumnChart(SumSuites, $spanMainChartA, $spanDynamiclPieA, $spanDynamiclPieB, $spanEmptySuites, Colorize(), true);
+    BuildStackedColumnChart(SumSuites, $spanMainChartB, $spanDynamiclPieA, $spanDynamiclPieB, $spanEmptySuites, Colorize(), false);
+    SetGraphView();
+    BuildPieChart(SumSuites[0], $spanDynamiclPieA, "Total Suits", Colorize(), true);
+    BuildPieChart(SumSuites[0], $spanDynamiclPieB, "Total Suits", Colorize(), false);
+    BuildPieChart(SumSuites[cakeGraphId], $spanTotalPie, "Selected Suits", Colorize(), true);
 }
 function Colorize() {
     let colorPass: ColorEntry = {
@@ -701,7 +774,7 @@ function Colorize() {
         value: 'In Progress'
     }
     let colorInNotApplicable: ColorEntry = {
-        backgroundColor: 'White',
+        backgroundColor: 'Yellow',
         value: 'Not Applicable'
     }
     let colors: Array<ColorEntry> = new Array<ColorEntry>();
@@ -715,7 +788,7 @@ function Colorize() {
     }
     return colorize;
 }
-function BuildStackedColumnChart(SumSuites: Array<SumeSuite>, $graphSpan: JQuery, $dinamicPieSpan: JQuery, $emptySuite: JQuery, colorize: ColorCustomizationOptions) {//, $selectedChart: JQuery
+function BuildStackedColumnChart(SumSuites: Array<SumeSuite>, $graphSpan: JQuery, $dinamicPieSpanA: JQuery, $dinamicPieSpanB: JQuery, $emptySuite: JQuery, colorize: ColorCustomizationOptions, isIsolate: boolean) {//, $selectedChart: JQuery
     let deep = $('#deep').is(":checked");
     let howDeep = $("#level").val();
     let Paused = [];
@@ -727,20 +800,45 @@ function BuildStackedColumnChart(SumSuites: Array<SumeSuite>, $graphSpan: JQuery
     let InProgress = [];
     let labels = [];
     let emptySuites = [];
+    let unFinishedSuites = [];
+    let fullPassSuites = [];
     for (let i = 0; i < SumSuites.length - 1; i++) {
         if (deep == true || SumSuites[i].suiteLevel <= howDeep) {
             if (SumSuites[i].totalPoints > 0) {
                 labels.push(SumSuites[i].SuiteName);
-                Passed.push([i, SumSuites[i].Passed]);
-                Failed.push([i, SumSuites[i].Failed]);
-                NotRun.push([i, SumSuites[i].NotRun]);
-                InProgress.push([i, SumSuites[i].InProgress]);
-                NotApplicable.push([i, SumSuites[i].NotApplicable]);
-                Paused.push([i, SumSuites[i].Paused]);
-                Blocked.push([i, SumSuites[i].Blocked]);
+                if (isIsolate) {
+                    Passed.push([i, SumSuites[i].Passed]);
+                    Failed.push([i, SumSuites[i].Failed]);
+                    NotRun.push([i, SumSuites[i].NotRun]);
+                    InProgress.push([i, SumSuites[i].InProgress]);
+                    NotApplicable.push([i, SumSuites[i].NotApplicable]);
+                    Paused.push([i, SumSuites[i].Paused]);
+                    Blocked.push([i, SumSuites[i].Blocked]);
+                    if (SumSuites[i].totalPoints == SumSuites[i].Passed) {
+                        fullPassSuites.push(SumSuites[i].SuiteName + " :" + SumSuites[i].AssignTo);
+                    }
+                    if (SumSuites[i].NotRun > 0) {
+                        unFinishedSuites.push(SumSuites[i].SuiteName + " :" + SumSuites[i].AssignTo);
+                    }
+                }
+                else {
+                    Passed.push([i, SumSuites[i].TotalPassed]);
+                    Failed.push([i, SumSuites[i].TotalFailed]);
+                    NotRun.push([i, SumSuites[i].TotalNotRun]);
+                    InProgress.push([i, SumSuites[i].TotalInProgress]);
+                    NotApplicable.push([i, SumSuites[i].TotalNotApplicable]);
+                    Paused.push([i, SumSuites[i].TotalPaused]);
+                    Blocked.push([i, SumSuites[i].TotalBlocked]);
+                    if (SumSuites[i].TotalIncludeChildren == SumSuites[i].TotalPassed) {
+                        fullPassSuites.push(SumSuites[i].SuiteName + " :" + SumSuites[i].AssignTo);
+                    }
+                    if (SumSuites[i].TotalNotRun > 0) {
+                        unFinishedSuites.push(SumSuites[i].SuiteName + " :" + SumSuites[i].AssignTo);
+                    }
+                }
             }
             else {
-                emptySuites.push(SumSuites[i].SuiteName);
+                emptySuites.push(SumSuites[i].SuiteName + " :" + SumSuites[i].AssignTo);
             }
         }
     }
@@ -790,37 +888,93 @@ function BuildStackedColumnChart(SumSuites: Array<SumeSuite>, $graphSpan: JQuery
         },
         "series": series,
         "click": (clickeEvent: ClickEvent) => {
-            $dinamicPieSpan.empty();
-            BuildPieChart(SumSuites[clickeEvent.seriesDataIndex], $dinamicPieSpan, "Selected suits", colorize);
+            $dinamicPieSpanA.empty();
+            $dinamicPieSpanB.empty();
+            BuildPieChart(SumSuites[clickeEvent.seriesDataIndex], $dinamicPieSpanA, "Selected suits", colorize, true);
+            BuildPieChart(SumSuites[clickeEvent.seriesDataIndex], $dinamicPieSpanB, "Selected suits", colorize, false);
         },
     }
-    BuildEmptyStuiteList(emptySuites, $emptySuite);
+    if (isIsolate) {
+        BuildSpecialStuiteList(emptySuites, fullPassSuites, unFinishedSuites, $emptySuite);
+        GraphA = $graphSpan;
+    }
+    else {
+        GraphB = $graphSpan;
+    }
     Services.ChartsService.getService().then((chartService) => {
         chartService.createChart($graphSpan, chartStackedColumnOptions);
     });
 }
-function BuildEmptyStuiteList(emptySuiteList: Array<string>, $emptySuite: JQuery) {
-    let $mainContainer = $("<div />");
-    $mainContainer.css("vertical-align", "text-top");
+function BuildSpecialStuiteList(emptySuiteList: Array<string>, fullPassList: Array<string>, unFinishedList: Array<string>, $spwcialLists: JQuery) {
+    let smallTable: JQuery = $("<table/>");
+    let haderLine = $("<tr/>");
+    let hader1 = $("<th/>");
+    hader1.append("Empty Suites");
+    let hader2 = $("<th/>");
+    hader2.append("Passed Suites");
+    let hader3 = $("<th/>");
+    hader3.append("Opened Suites");
+    haderLine.append(hader1);
+    haderLine.append(hader2);
+    haderLine.append(hader3);
+    smallTable.append(haderLine);
+    let listLine = $("<tr/>");
+    let emptyList = $("<td/>");
+    emptyList.append(CreateSepicalList(emptySuiteList));
+    let finishedList = $("<td/>");
+    finishedList.append(CreateSepicalList(fullPassList));
+    let opendeList = $("<td/>");
+    opendeList.append(CreateSepicalList(unFinishedList));
+    listLine.append(emptyList);
+    listLine.append(finishedList);
+    listLine.append(opendeList);
+    smallTable.append(listLine);
+    $spwcialLists.append(smallTable);
+}
+function CreateSepicalList(SuiteList: Array<string>) {
     let $container = $("<ul />")
     $container.css("vertical-align", "text-top");
-    if (emptySuiteList.length > 0) {
-        emptySuiteList.forEach(Suite => {
+    if (SuiteList.length > 0) {
+        SuiteList.forEach(Suite => {
             let $liSuite = $("<li />");
             $liSuite.text(Suite);
             $liSuite.css("font-size", "large");
             $liSuite.css("vertical-align", "text-top");
             $container.append($liSuite)
         });
-        $container.css("overflow", "scroll");
-        $container.css("border", "1px solid black");
-        $mainContainer.append($container);
-        $emptySuite.append($mainContainer);
     }
+    $container.css("border", "1px solid black");
+    let $list = $("<div />");
+    $list.css("vertical-align", "text-top");
+    $list.append($container);
+    return $list
 }
-function BuildPieChart(selectedSuite: SumeSuite, $rightGraph: JQuery, title: string, colorize: ColorCustomizationOptions) {
+function BuildPieChart(selectedSuite: SumeSuite, $rightGraph: JQuery, title: string, colorize: ColorCustomizationOptions, isIsolate: boolean) {
     let legend: LegendOptions = {
         enabled: false
+    }
+    let data: number[];
+    if (isIsolate) {
+        data = [
+            selectedSuite.Paused,
+            selectedSuite.Blocked,
+            selectedSuite.NotApplicable,
+            selectedSuite.Passed,
+            selectedSuite.Failed,
+            selectedSuite.InProgress,
+            selectedSuite.NotRun
+        ]
+    }
+    else {
+        data = [
+            selectedSuite.TotalPaused,
+            selectedSuite.TotalBlocked,
+            selectedSuite.TotalNotApplicable,
+            selectedSuite.TotalPassed,
+            selectedSuite.TotalFailed,
+            selectedSuite.TotalInProgress,
+            selectedSuite.TotalNotRun
+        ]
     }
     let chartPieOptions: CommonChartOptions = {
         "title": title,
@@ -834,19 +988,10 @@ function BuildPieChart(selectedSuite: SumeSuite, $rightGraph: JQuery, title: str
             title: title,
             canZoom: true,
             labelsEnabled: false,
-            // suppressLabelTruncation: true,
             labelValues: ["Paused", "Blocked", "Not Applicable", "Passed", "Failed", "In Progress", "Not Run"]
         },
         "series": [{
-            "data": [
-                selectedSuite.Paused,
-                selectedSuite.Blocked,
-                selectedSuite.NotApplicable,
-                selectedSuite.Passed,
-                selectedSuite.Failed,
-                selectedSuite.InProgress,
-                selectedSuite.NotRun
-            ]
+            data
         }],
         "specializedOptions": {
             showLabels: true,
@@ -857,12 +1002,33 @@ function BuildPieChart(selectedSuite: SumeSuite, $rightGraph: JQuery, title: str
         chartService.createChart($rightGraph, chartPieOptions);
     });
 }
+function SetGraphView() {
+    let $switchView = $("#switchView");
+    if ($switchView.text() != "Aggregate View") {
+        $switchView.text("Aggregate View");
+        GraphB.remove();
+        graphDiv.append(GraphA);
+    }
+    else {
+        $switchView.text("Isolated View");
+        GraphA.remove();
+        graphDiv.append(GraphB);
+    }
+    $switchView.click(() => {
+        //SetGraphView() ;
+        let $switchView = $("#switchView");
+        if ($switchView.text() == "Aggregate View") {
+            $switchView.text("Isolated View");
+            GraphA.remove();
+            graphDiv.append(GraphB);
+        }
+        else {
+            $switchView.text("Aggregate View");
+            GraphB.remove();
+            graphDiv.append(GraphA);
+        }
+    });
+}
 var id = VSS.getContribution().id;
 VSS.register(id, Init_Page);
 Init_Page();
-
-// add hide to field step if needed
-//
-// start change the second senario of the table - make it faster 
-//
-// check th CSV export
