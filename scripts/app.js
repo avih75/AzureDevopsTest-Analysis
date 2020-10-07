@@ -6,7 +6,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient", "Charts/Contracts", "./CsvHelper", "./storageHelper", "TFS/WorkItemTracking/Contracts", "TFS/WorkItemTracking/RestClient"], function (require, exports, Services, TestRestClient, Contracts_1, CsvHelper_1, storageHelper_1, Contracts_2, WorkItemManagment) {
+define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient", "TFS/TestManagement/Contracts", "Charts/Contracts", "./CsvHelper", "./storageHelper", "TFS/WorkItemTracking/Contracts", "TFS/WorkItemTracking/RestClient", "TFS/WorkItemTracking/Services"], function (require, exports, Services, TestRestClient, Contracts_1, Contracts_2, CsvHelper_1, storageHelper_1, Contracts_3, WorkItemManagment, witManager) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     let WIClient = WorkItemManagment.getClient();
@@ -27,7 +27,7 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
     class TestSuiteModel {
     }
     class SumeSuite {
-        constructor(name) {
+        constructor(name, id, url = "") {
             this.SuiteName = name;
             this.Blocked = 0;
             this.Failed = 0;
@@ -45,6 +45,8 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
             this.TotalInProgress = 0;
             this.TotalPaused = 0;
             this.TotalBlocked = 0;
+            this.SuiteId = id;
+            this.url = url;
         }
     }
     function CreateCalculateImgDiv(image) {
@@ -197,7 +199,7 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
         $("#graph-container").append(CreateCalculateImgDiv("Graph"));
         testClient.getTestSuitesForPlan(projectName, +selectedPlan).then((suites) => __awaiter(this, void 0, void 0, function* () {
             ShowInfos(projectName, +selectedPlan, selectPlan);
-            yield BuildTestsSumSuites(suites);
+            yield BuildTestsSumSuites(suites, projectName, +selectedPlan);
             BuildTableTestGrid(projectName, +selectedPlan, selectPlan, suites);
         }));
     }
@@ -286,7 +288,7 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
             });
             let TestCaseWIs = new Array();
             if (testPoints.length > 0) {
-                TestCaseWIs = yield WIClient.getWorkItems(testPointsIDs, null, null, Contracts_2.WorkItemExpand.All);
+                TestCaseWIs = yield WIClient.getWorkItems(testPointsIDs, null, null, Contracts_3.WorkItemExpand.All);
             }
             let TestRuns = yield testClient.getTestRuns(projectName);
             for (const testPoint of testPoints) {
@@ -298,6 +300,8 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
                 let postProcess = "";
                 let stepFaild = "";
                 let outcome = testPoint.outcome;
+                if (outcome == "NotApplicable")
+                    outcome = "Not Applicable";
                 let assingTo = "None";
                 TestCaseWIs.forEach(TestCaseWI => {
                     if (TestCaseWI.id == +testPoint.testCase.id) {
@@ -363,7 +367,8 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
                     FaildStep: stepFaild,
                     testCaseName: testName,
                     testCaseType: testPoint.testCase.type,
-                    configuration: testPoint.configuration.name
+                    configuration: testPoint.configuration.name,
+                    url: testPoint.url
                 };
                 testPointsModel.push(testPointModel);
             }
@@ -492,9 +497,9 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
         }
         return textSpan;
     }
-    function BuildTestsSumSuites(suites) {
+    function BuildTestsSumSuites(suites, projectName, palnId) {
         return __awaiter(this, void 0, void 0, function* () {
-            let totalTests = new SumeSuite("Total");
+            let totalTests = new SumeSuite("Total", 0);
             let SumSuites = new Array();
             let promisss = new Array();
             suites.forEach(suite => {
@@ -515,14 +520,14 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
                 SumSuites.sort((a, b) => b.totalPoints - a.totalPoints);
                 SumSuites.push(totalTests);
                 SumSuitesforExecell = SumSuites;
-                BuildGraphs(SumSuites);
+                BuildGraphs(SumSuites, projectName, palnId);
                 BuildTableView(SumSuites);
             });
         });
     }
     function GetSuiteSum(suite) {
         return __awaiter(this, void 0, void 0, function* () {
-            let suiteSum = new SumeSuite(suite.name);
+            let suiteSum = new SumeSuite(suite.name, suite.id, suite.url);
             if (suite.defaultTesters != undefined && suite.defaultTesters.length > 0)
                 suiteSum.AssignTo = suite.defaultTesters[0].name;
             else
@@ -643,7 +648,7 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
         tableContainer.empty();
         tableContainer.append(container);
     }
-    function BuildGraphs(SumSuites) {
+    function BuildGraphs(SumSuites, projectName, palnId) {
         let $container = $('#graph-container');
         let $radioButtons = $("#DeepRadioButton");
         $container.addClass("scroller");
@@ -710,12 +715,12 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
         $secDev.append($table);
         $container.append($secDev);
         let cakeGraphId = SumSuites.length - 1;
-        BuildStackedColumnChart(SumSuites, $spanMainChartA, $spanDynamiclPieA, $spanDynamiclPieB, $spanEmptySuites, Colorize(), true);
-        BuildStackedColumnChart(SumSuites, $spanMainChartB, $spanDynamiclPieA, $spanDynamiclPieB, $spanEmptySuites, Colorize(), false);
+        BuildStackedColumnChart(SumSuites, $spanMainChartA, $spanDynamiclPieA, $spanDynamiclPieB, $spanEmptySuites, Colorize(), true, projectName, palnId);
+        BuildStackedColumnChart(SumSuites, $spanMainChartB, $spanDynamiclPieA, $spanDynamiclPieB, $spanEmptySuites, Colorize(), false, projectName, palnId);
         SetGraphView();
-        BuildPieChart(SumSuites[0], $spanDynamiclPieA, "Total Suits", Colorize(), true);
-        BuildPieChart(SumSuites[0], $spanDynamiclPieB, "Total Suits", Colorize(), false);
-        BuildPieChart(SumSuites[cakeGraphId], $spanTotalPie, "Selected Suits", Colorize(), true);
+        BuildPieChart(SumSuites[0], $spanDynamiclPieA, "Total Suits", Colorize(), true, projectName, palnId);
+        BuildPieChart(SumSuites[0], $spanDynamiclPieB, "Total Suits", Colorize(), false, projectName, palnId);
+        BuildPieChart(SumSuites[cakeGraphId], $spanTotalPie, "Selected Suits", Colorize(), true, projectName, palnId);
     }
     function Colorize() {
         let colorPass = {
@@ -749,7 +754,7 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
         };
         return colorize;
     }
-    function BuildStackedColumnChart(SumSuites, $graphSpan, $dinamicPieSpanA, $dinamicPieSpanB, $emptySuite, colorize, isIsolate) {
+    function BuildStackedColumnChart(SumSuites, $graphSpan, $dinamicPieSpanA, $dinamicPieSpanB, $emptySuite, colorize, isIsolate, projectName, palnId) {
         let deep = $('#deep').is(":checked");
         let howDeep = $("#level").val();
         let Paused = [];
@@ -838,7 +843,7 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
         };
         let chartStackedColumnOptions = {
             "tooltip": toolTipOption,
-            "chartType": Contracts_1.ChartTypesConstants.StackedColumn,
+            "chartType": Contracts_2.ChartTypesConstants.StackedColumn,
             colorCustomizationOptions: colorize,
             "xAxis": {
                 canZoom: true,
@@ -852,8 +857,8 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
             "click": (clickeEvent) => {
                 $dinamicPieSpanA.empty();
                 $dinamicPieSpanB.empty();
-                BuildPieChart(SumSuites[clickeEvent.seriesDataIndex], $dinamicPieSpanA, "Selected suits", colorize, true);
-                BuildPieChart(SumSuites[clickeEvent.seriesDataIndex], $dinamicPieSpanB, "Selected suits", colorize, false);
+                BuildPieChart(SumSuites[clickeEvent.seriesDataIndex], $dinamicPieSpanA, "Selected suits", colorize, true, projectName, palnId);
+                BuildPieChart(SumSuites[clickeEvent.seriesDataIndex], $dinamicPieSpanB, "Selected suits", colorize, false, projectName, palnId);
             },
         };
         if (isIsolate) {
@@ -919,7 +924,7 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
         $list.append($container);
         return $list;
     }
-    function BuildPieChart(selectedSuite, $rightGraph, title, colorize, isIsolate) {
+    function BuildPieChart(selectedSuite, $rightGraph, title, colorize, isIsolate, projectName, palnId) {
         let legend = {
             enabled: false
         };
@@ -952,7 +957,7 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
             "legend": legend,
             suppressAnimation: true,
             hostOptions: { height: 250, width: 250 },
-            "chartType": Contracts_1.ChartTypesConstants.Pie,
+            "chartType": Contracts_2.ChartTypesConstants.Pie,
             colorCustomizationOptions: colorize,
             "xAxis": {
                 title: title,
@@ -964,7 +969,7 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
                     data
                 }],
             "click": (clickeEvent) => {
-                DrillDown(clickeEvent);
+                DrillDown(clickeEvent.itemName, selectedSuite.SuiteName, selectedSuite.SuiteId, isIsolate, projectName, palnId);
             },
             "specializedOptions": {
                 showLabels: true,
@@ -1001,12 +1006,63 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
             }
         });
     }
-    function DrillDown(clickeEvent) {
-        let suiteName = clickeEvent.labelName;
-        let selectedTests = clickeEvent.seriesName;
+    function DrillDown(selectedTests, suiteName, suiteId, isISolate, projectName, palnId) {
+        if (suiteName == "Total") {
+            return;
+        }
+        $("#modalView").empty();
+        $("#modalTitle").text(suiteName + " " + selectedTests);
         modal.style.display = "block";
+        let row = $("<tr/>");
+        row.append($("<th/>").addClass("Hcell").append($("<label/>").addClass("Hcell").text("ID")));
+        row.append($("<th/>").addClass("Hcell").append($("<label/>").addClass("Hcell").text("Test Case Name")));
+        row.append($("<th/>").addClass("Hcell").append($("<label/>").addClass("Hcell").text("Assign To")));
+        row.append($("<th/>").addClass("Hcell").append($("<label/>").addClass("Hcell").text("Comment")));
+        $("#modalView").append(row);
+        AddPointsToModal(projectName, palnId, suiteId, selectedTests);
+        if (!isISolate) {
+            GetSuites(projectName, palnId, suiteId).then((suiteIds) => {
+                suiteIds.forEach(id => {
+                    AddPointsToModal(projectName, palnId, id, selectedTests);
+                });
+            });
+        }
     }
-    var id = VSS.getContribution().id;
-    VSS.register(id, Init_Page);
+    function GetSuites(projectName, palnId, suiteId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let ids = new Array();
+            yield testClient.getTestSuiteById(projectName, palnId, suiteId, Contracts_1.SuiteExpand.Children).then((suite) => {
+                suite.suites.forEach((innerSuite) => __awaiter(this, void 0, void 0, function* () {
+                    ids.push(+innerSuite.id);
+                    let childIds = yield GetSuites(projectName, palnId, +innerSuite.id);
+                    childIds.forEach(id => {
+                        ids.push(id);
+                    });
+                }));
+            });
+            return ids;
+        });
+    }
+    function AddPointsToModal(projectName, palnId, suiteId, selectedTests) {
+        GetTestPointsV2(projectName, palnId, suiteId).then((TestsList) => {
+            TestsList.forEach(test => {
+                if (test.outCome == selectedTests) {
+                    let row = $("<tr/>");
+                    row.append($("<td/>").addClass("cell").append($("<label/>").addClass("cell").text(test.id)));
+                    row.append($("<td/>").addClass("cell").append($("<label/>").addClass("cell").text(test.testCaseName)));
+                    row.append($("<td/>").addClass("cell").append($("<label/>").addClass("cell").text(test.assignedTo)));
+                    if (test.comment)
+                        row.append($("<td/>").addClass("cell").append($("<label/>").addClass("cell").text(test.comment)));
+                    $("#modalView").append(row);
+                }
+            });
+        });
+    }
+    function OpenTestCase(id, url) {
+        witManager.WorkItemFormNavigationService.getService().then((service) => {
+            service.openWorkItem(id, false);
+        });
+    }
+    VSS.register(VSS.getContribution().id, Init_Page);
     Init_Page();
 });

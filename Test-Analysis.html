@@ -51,10 +51,6 @@
         <div id="grid-container" class="MainTableDiv"></div>
         <div id="table-container"></div>
         <div id="graph-container" style="height: 80%;">
-            <!-- <div id="CalculateG" class="Calculating">
-                <img src="images/Calculating.gif" height="40" width="40">
-                <label class="CalculateLable">Mine Data X form Y</label>
-            </div> -->
             <span id="DeepRadioButton" class="DeepRadioButton" style="margin: 10px;">
                 <button id="refresh">Refresh</button>
                 <input type="checkbox" id="deep" value="Deep" checked="true">
@@ -66,13 +62,12 @@
         </div>
     </div>
     <div id="myModal" class="modal">
-
         <!-- Modal content -->
         <div class="modal-content">
             <span class="close" id="close">&times;</span>
-            <p>Some text in the Modal..</p>
+            <h1 id="modalTitle" style="text-align: center;color: gray;"></h1>
+            <table id="modalView" class="tbl"></table>
         </div>
-
     </div>
 </body>
 

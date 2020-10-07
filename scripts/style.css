@@ -259,7 +259,8 @@
     margin: auto;
     padding: 20px;
     border: 1px solid #888;
-    width: 80%;
+    width: 50%;
+    height: auto;
 }
 
 
@@ -277,4 +278,24 @@
     color: #000;
     text-decoration: none;
     cursor: pointer;
+}
+
+.Hcell {
+    padding: 5px;
+    font-size: large;
+    color: blue;
+}
+
+.cell {
+    padding: 10px;
+    font-size: medium;
+    color: black;
+}
+
+.cell:hover {
+    cursor: pointer;
+}
+
+.tbl {
+    padding: 20px;
 }

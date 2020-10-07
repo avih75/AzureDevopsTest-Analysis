@@ -1,11 +1,12 @@
 import Services = require("Charts/Services");
 import TestRestClient = require("TFS/TestManagement/RestClient");
-import { TestPlan, TestSuite, TestPoint, TestRun } from "TFS/TestManagement/Contracts";
-import { CommonChartOptions, ChartTypesConstants, ClickEvent, LegendOptions, TooltipOptions, ColorCustomizationOptions, ColorEntry, ChartHostOptions, PieChartOptions, LabelFormatModes } from "Charts/Contracts";
+import { TestPlan, TestSuite, TestPoint, TestRun, SuiteExpand } from "TFS/TestManagement/Contracts";
+import { CommonChartOptions, ChartTypesConstants, ClickEvent, LegendOptions, TooltipOptions, ColorCustomizationOptions, ColorEntry } from "Charts/Contracts";
 import { CsvDataService } from "./CsvHelper";
 import { GetLastTimeValue, SetValue } from "./storageHelper";
 import { WorkItemExpand, WorkItem } from "TFS/WorkItemTracking/Contracts";
 import WorkItemManagment = require("TFS/WorkItemTracking/RestClient");
+import witManager = require("TFS/WorkItemTracking/Services");
 
 let WIClient: WorkItemManagment.WorkItemTrackingHttpClient4_1 = WorkItemManagment.getClient();
 let testClient = TestRestClient.getClient();
@@ -35,6 +36,7 @@ class TestPointModel {
     passedTests: number;
     totalTests: number;
     postProcessState: string;
+    url: string;
 }
 class TestCaseModel {
     testCaseId: string;
@@ -46,7 +48,8 @@ class TestCaseModel {
     assignedTo: string;
     comment: string;
     failureType: string;
-} class TestSuiteModel {
+}
+class TestSuiteModel {
     suiteId: number;
     perentId: string;
     suiteName: string;
@@ -58,8 +61,9 @@ class TestCaseModel {
     testCaseCount: number;
     allTestCases: number;
     testSuiteLevel: number;
-} class SumeSuite {
-    constructor(name: string) {
+}
+class SumeSuite {
+    constructor(name: string, id: number, url: string = "") {
         this.SuiteName = name;
         this.Blocked = 0
         this.Failed = 0
@@ -77,6 +81,8 @@ class TestCaseModel {
         this.TotalInProgress = 0;
         this.TotalPaused = 0;
         this.TotalBlocked = 0;
+        this.SuiteId = id;
+        this.url = url;
     }
     SuiteId: number;
     SuiteName: string;
@@ -99,6 +105,7 @@ class TestCaseModel {
     ParentID: string;
     TotalIncludeChildren: number;
     AssignTo: string;
+    url: string;
 }
 function CreateCalculateImgDiv(image: string) {
     let $calculateDiv = $("<div />");
@@ -248,7 +255,7 @@ function RunBuilds(projectName: string, selectedPlan: string, selectPlan: JQuery
     $("#graph-container").append(CreateCalculateImgDiv("Graph"));
     testClient.getTestSuitesForPlan(projectName, +selectedPlan).then(async (suites: TestSuite[]) => {
         ShowInfos(projectName, +selectedPlan, selectPlan);
-        await BuildTestsSumSuites(suites);  // run the graphs pad #1 and the then the table test view pad #3
+        await BuildTestsSumSuites(suites, projectName, +selectedPlan);  // run the graphs pad #1 and the then the table test view pad #3
         BuildTableTestGrid(projectName, +selectedPlan, selectPlan, suites); // run the tree view pad #2
     });
 }
@@ -343,6 +350,8 @@ async function GetAllTestRunsResults(projectName: string, testPoints: TestPoint[
         let postProcess: string = "";
         let stepFaild: string = "";
         let outcome: string = testPoint.outcome;
+        if (outcome == "NotApplicable")
+            outcome = "Not Applicable"
         let assingTo: string = "None";
         TestCaseWIs.forEach(TestCaseWI => {
             if (TestCaseWI.id == +testPoint.testCase.id) {
@@ -407,7 +416,8 @@ async function GetAllTestRunsResults(projectName: string, testPoints: TestPoint[
             FaildStep: stepFaild,
             testCaseName: testName,
             testCaseType: testPoint.testCase.type,
-            configuration: testPoint.configuration.name
+            configuration: testPoint.configuration.name,
+            url: testPoint.url
         }
         testPointsModel.push(testPointModel);
     }
@@ -486,7 +496,7 @@ function BuildTreeTestView(point: TestPointModel) {
     tr.append(TextView(point.outCome, 2));
     tr.append(TextView("Failed step:", 1));
     if (point.FaildStep) {
-        var doc = $($.parseHTML(point.FaildStep));//new DOMParser().parseFromString(point.failureType, "text/xml");
+        var doc = $($.parseHTML(point.FaildStep));
         tr.append(doc)
     }
     else {
@@ -498,14 +508,6 @@ function BuildTreeTestView(point: TestPointModel) {
     tr.append(TextView(point.configuration, 2));
     tr.append(TextView("Failure Type:", 1));
     tr.append(TextView(point.failureType, 2));
-    // tr.append(TextView("Passed:", 1));
-    // tr.append(TextView(point.passedTests, 2));
-    // tr.append(TextView("Incomplit:", 1));
-    // tr.append(TextView(point.incompliteTests, 2));
-    // tr.append(TextView("Not Applicable:", 1));
-    // tr.append(TextView(point.notApplicableTests, 2));
-    // tr.append(TextView("Total:", 1));
-    // tr.append(TextView(point.totalTests, 2));
     tr.append(TextView("Type:", 1));
     tr.append(TextView(point.testCaseType, 2));
     tr.append(TextView("Comment:", 1));
@@ -544,8 +546,8 @@ function TextView(lable: any, size: number) {
     }
     return textSpan;
 }
-async function BuildTestsSumSuites(suites: TestSuite[]) {
-    let totalTests: SumeSuite = new SumeSuite("Total");
+async function BuildTestsSumSuites(suites: TestSuite[], projectName: string, palnId: number) {
+    let totalTests: SumeSuite = new SumeSuite("Total", 0);
     let SumSuites: Array<SumeSuite> = new Array<SumeSuite>();
     let promisss: Array<Promise<void>> = new Array<Promise<void>>();
     suites.forEach(suite => {
@@ -566,12 +568,12 @@ async function BuildTestsSumSuites(suites: TestSuite[]) {
         SumSuites.sort((a: SumeSuite, b: SumeSuite) => b.totalPoints - a.totalPoints);
         SumSuites.push(totalTests);
         SumSuitesforExecell = SumSuites;
-        BuildGraphs(SumSuites); //await
+        BuildGraphs(SumSuites, projectName, palnId); //await
         BuildTableView(SumSuites);
     })
 }
 async function GetSuiteSum(suite: TestSuite) {
-    let suiteSum: SumeSuite = new SumeSuite(suite.name);
+    let suiteSum: SumeSuite = new SumeSuite(suite.name, suite.id, suite.url);
     if (suite.defaultTesters != undefined && suite.defaultTesters.length > 0)
         suiteSum.AssignTo = suite.defaultTesters[0].name;
     else
@@ -690,7 +692,7 @@ function BuildTableView(SumSuites: Array<SumeSuite>) {
     tableContainer.empty();
     tableContainer.append(container);
 }
-function BuildGraphs(SumSuites: Array<SumeSuite>) {
+function BuildGraphs(SumSuites: Array<SumeSuite>, projectName: string, palnId: number) {
     let $container = $('#graph-container');
     let $radioButtons = $("#DeepRadioButton");
     $container.addClass("scroller");
@@ -764,12 +766,12 @@ function BuildGraphs(SumSuites: Array<SumeSuite>) {
     $container.append($secDev);
     //
     let cakeGraphId = SumSuites.length - 1;
-    BuildStackedColumnChart(SumSuites, $spanMainChartA, $spanDynamiclPieA, $spanDynamiclPieB, $spanEmptySuites, Colorize(), true);
-    BuildStackedColumnChart(SumSuites, $spanMainChartB, $spanDynamiclPieA, $spanDynamiclPieB, $spanEmptySuites, Colorize(), false);
+    BuildStackedColumnChart(SumSuites, $spanMainChartA, $spanDynamiclPieA, $spanDynamiclPieB, $spanEmptySuites, Colorize(), true, projectName, palnId);
+    BuildStackedColumnChart(SumSuites, $spanMainChartB, $spanDynamiclPieA, $spanDynamiclPieB, $spanEmptySuites, Colorize(), false, projectName, palnId);
     SetGraphView();
-    BuildPieChart(SumSuites[0], $spanDynamiclPieA, "Total Suits", Colorize(), true);
-    BuildPieChart(SumSuites[0], $spanDynamiclPieB, "Total Suits", Colorize(), false);
-    BuildPieChart(SumSuites[cakeGraphId], $spanTotalPie, "Selected Suits", Colorize(), true);
+    BuildPieChart(SumSuites[0], $spanDynamiclPieA, "Total Suits", Colorize(), true, projectName, palnId);
+    BuildPieChart(SumSuites[0], $spanDynamiclPieB, "Total Suits", Colorize(), false, projectName, palnId);
+    BuildPieChart(SumSuites[cakeGraphId], $spanTotalPie, "Selected Suits", Colorize(), true, projectName, palnId);
 }
 function Colorize() {
     let colorPass: ColorEntry = {
@@ -803,7 +805,7 @@ function Colorize() {
     }
     return colorize;
 }
-function BuildStackedColumnChart(SumSuites: Array<SumeSuite>, $graphSpan: JQuery, $dinamicPieSpanA: JQuery, $dinamicPieSpanB: JQuery, $emptySuite: JQuery, colorize: ColorCustomizationOptions, isIsolate: boolean) {//, $selectedChart: JQuery
+function BuildStackedColumnChart(SumSuites: Array<SumeSuite>, $graphSpan: JQuery, $dinamicPieSpanA: JQuery, $dinamicPieSpanB: JQuery, $emptySuite: JQuery, colorize: ColorCustomizationOptions, isIsolate: boolean, projectName: string, palnId: number) {//, $selectedChart: JQuery
     let deep = $('#deep').is(":checked");
     let howDeep = $("#level").val();
     let Paused = [];
@@ -905,8 +907,8 @@ function BuildStackedColumnChart(SumSuites: Array<SumeSuite>, $graphSpan: JQuery
         "click": (clickeEvent: ClickEvent) => {
             $dinamicPieSpanA.empty();
             $dinamicPieSpanB.empty();
-            BuildPieChart(SumSuites[clickeEvent.seriesDataIndex], $dinamicPieSpanA, "Selected suits", colorize, true);
-            BuildPieChart(SumSuites[clickeEvent.seriesDataIndex], $dinamicPieSpanB, "Selected suits", colorize, false);
+            BuildPieChart(SumSuites[clickeEvent.seriesDataIndex], $dinamicPieSpanA, "Selected suits", colorize, true, projectName, palnId);
+            BuildPieChart(SumSuites[clickeEvent.seriesDataIndex], $dinamicPieSpanB, "Selected suits", colorize, false, projectName, palnId);
         },
     }
     if (isIsolate) {
@@ -972,7 +974,7 @@ function CreateSepicalList(SuiteList: Array<string>) {
     $list.append($container);
     return $list
 }
-function BuildPieChart(selectedSuite: SumeSuite, $rightGraph: JQuery, title: string, colorize: ColorCustomizationOptions, isIsolate: boolean) {
+function BuildPieChart(selectedSuite: SumeSuite, $rightGraph: JQuery, title: string, colorize: ColorCustomizationOptions, isIsolate: boolean, projectName: string, palnId: number) {
     let legend: LegendOptions = {
         enabled: false
     }
@@ -1017,7 +1019,7 @@ function BuildPieChart(selectedSuite: SumeSuite, $rightGraph: JQuery, title: str
             data
         }],
         "click": (clickeEvent: ClickEvent) => {
-            DrillDown(clickeEvent);
+            DrillDown(clickeEvent.itemName, selectedSuite.SuiteName, selectedSuite.SuiteId, isIsolate, projectName, palnId);
         },
         "specializedOptions": {
             showLabels: true,
@@ -1055,11 +1057,63 @@ function SetGraphView() {
         }
     });
 }
-function DrillDown(clickeEvent: ClickEvent) {
-    let suiteName = clickeEvent.labelName;
-    let selectedTests = clickeEvent.seriesName;
+function DrillDown(selectedTests: string, suiteName: string, suiteId: number, isISolate: boolean, projectName: string, palnId: number) {
+    if (suiteName == "Total") {
+        return;
+    }
+    $("#modalView").empty();
+    $("#modalTitle").text(suiteName + " " + selectedTests);
     modal.style.display = "block";
+    let row = $("<tr/>"); 
+    row.append($("<th/>").addClass("Hcell").append($("<label/>").addClass("Hcell").text("ID")));
+    row.append($("<th/>").addClass("Hcell").append($("<label/>").addClass("Hcell").text("Test Case Name")));
+    row.append($("<th/>").addClass("Hcell").append($("<label/>").addClass("Hcell").text("Assign To")));
+    row.append($("<th/>").addClass("Hcell").append($("<label/>").addClass("Hcell").text("Comment")));
+    $("#modalView").append(row);
+    AddPointsToModal(projectName, palnId, suiteId, selectedTests);
+    if (!isISolate) {
+        GetSuites(projectName, palnId, suiteId).then((suiteIds: Array<number>) => {
+            suiteIds.forEach(id => {
+                AddPointsToModal(projectName, palnId, id, selectedTests);
+            });
+        })
+    }
 }
-var id = VSS.getContribution().id;
-VSS.register(id, Init_Page);
+async function GetSuites(projectName: string, palnId: number, suiteId: number) {
+    let ids: Array<number> = new Array<number>();
+    await testClient.getTestSuiteById(projectName, palnId, suiteId, SuiteExpand.Children).then((suite) => {
+        suite.suites.forEach(async innerSuite => {
+            ids.push(+innerSuite.id);
+            let childIds: Array<number> = await GetSuites(projectName, palnId, +innerSuite.id);
+            childIds.forEach(id => {
+                ids.push(id);
+            });
+        });
+    })
+    return ids
+}
+function AddPointsToModal(projectName: string, palnId: number, suiteId: number, selectedTests: string) {
+    GetTestPointsV2(projectName, palnId, suiteId).then((TestsList: Array<TestPointModel>) => {
+        TestsList.forEach(test => {
+            if (test.outCome == selectedTests) {
+                let row = $("<tr/>"); 
+                // row.click(() => {
+                //     OpenTestCase(+test.id,test.url);
+                // })
+                row.append($("<td/>").addClass("cell").append($("<label/>").addClass("cell").text(test.id)));
+                row.append($("<td/>").addClass("cell").append($("<label/>").addClass("cell").text(test.testCaseName)));
+                row.append($("<td/>").addClass("cell").append($("<label/>").addClass("cell").text(test.assignedTo)));
+                if (test.comment)
+                    row.append($("<td/>").addClass("cell").append($("<label/>").addClass("cell").text(test.comment)));
+                $("#modalView").append(row);
+            }
+        });
+    })
+}
+function OpenTestCase(id: number, url: string) {
+    witManager.WorkItemFormNavigationService.getService().then((service) => {
+        service.openWorkItem(id, false);
+    })
+}
+VSS.register(VSS.getContribution().id, Init_Page);
 Init_Page();
