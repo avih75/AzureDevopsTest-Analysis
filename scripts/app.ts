@@ -16,6 +16,8 @@ let selectedId: number = 0;
 let GraphA: JQuery;
 let GraphB: JQuery;
 let graphDiv: JQuery;
+let modal: HTMLElement
+let closeModal: HTMLElement
 class TestPointModel {
     id: string;
     FaildStep: string;
@@ -110,12 +112,25 @@ function CreateCalculateImgDiv(image: string) {
     $calculateDiv.append($calculateImg);
     return $calculateDiv;
 }
+function ModalBuild() {
+    modal = document.getElementById("myModal");
+    closeModal = document.getElementById("close");
+    closeModal.onclick = function () {
+        modal.style.display = "none";
+    }
+    window.onclick = function (event) {
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    }
+}
 async function Init_Page(): Promise<void> {
+    ModalBuild();
     let webContext = VSS.getWebContext();
     try {
         selectedId = await GetLastTimeValue(webContext.user.name + "_" + webContext.project.name);
     }
-    catch{ }
+    catch { }
     VSS.resize();
     buildView();
     // start with graph view
@@ -909,13 +924,13 @@ function BuildSpecialStuiteList(emptySuiteList: Array<string>, fullPassList: Arr
     let smallTable: JQuery = $("<table/>");
     let haderLine = $("<tr/>");
     let hader1 = $("<th/>");
-    hader1.css("font-size","large");
+    hader1.css("font-size", "large");
     hader1.append("Empty Suites");
     let hader2 = $("<th/>");
-    hader2.css("font-size","large");
+    hader2.css("font-size", "large");
     hader2.append("Passed Suites");
     let hader3 = $("<th/>");
-    hader3.css("font-size","large");
+    hader3.css("font-size", "large");
     hader3.append("Opened Suites");
     haderLine.append(hader1);
     haderLine.append(hader2);
@@ -1001,6 +1016,9 @@ function BuildPieChart(selectedSuite: SumeSuite, $rightGraph: JQuery, title: str
         "series": [{
             data
         }],
+        "click": (clickeEvent: ClickEvent) => {
+            DrillDown(clickeEvent);
+        },
         "specializedOptions": {
             showLabels: true,
             size: "80%"
@@ -1036,6 +1054,11 @@ function SetGraphView() {
             graphDiv.append(GraphA);
         }
     });
+}
+function DrillDown(clickeEvent: ClickEvent) {
+    let suiteName = clickeEvent.labelName;
+    let selectedTests = clickeEvent.seriesName;
+    modal.style.display = "block";
 }
 var id = VSS.getContribution().id;
 VSS.register(id, Init_Page);

@@ -18,6 +18,8 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
     let GraphA;
     let GraphB;
     let graphDiv;
+    let modal;
+    let closeModal;
     class TestPointModel {
     }
     class TestCaseModel {
@@ -57,8 +59,21 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
         $calculateDiv.append($calculateImg);
         return $calculateDiv;
     }
+    function ModalBuild() {
+        modal = document.getElementById("myModal");
+        closeModal = document.getElementById("close");
+        closeModal.onclick = function () {
+            modal.style.display = "none";
+        };
+        window.onclick = function (event) {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        };
+    }
     function Init_Page() {
         return __awaiter(this, void 0, void 0, function* () {
+            ModalBuild();
             let webContext = VSS.getWebContext();
             try {
                 selectedId = yield storageHelper_1.GetLastTimeValue(webContext.user.name + "_" + webContext.project.name);
@@ -948,6 +963,9 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
             "series": [{
                     data
                 }],
+            "click": (clickeEvent) => {
+                DrillDown(clickeEvent);
+            },
             "specializedOptions": {
                 showLabels: true,
                 size: "80%"
@@ -982,6 +1000,11 @@ define(["require", "exports", "Charts/Services", "TFS/TestManagement/RestClient"
                 graphDiv.append(GraphA);
             }
         });
+    }
+    function DrillDown(clickeEvent) {
+        let suiteName = clickeEvent.labelName;
+        let selectedTests = clickeEvent.seriesName;
+        modal.style.display = "block";
     }
     var id = VSS.getContribution().id;
     VSS.register(id, Init_Page);
