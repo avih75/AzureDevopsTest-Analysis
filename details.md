@@ -34,16 +34,29 @@ by changing the Deep check box, you can determit how deep in the Suites tree you
 ![Layout Customization](images/H.png)
 ![Layout Customization](images/I.png)
 
-# Empty Suite List
+# Suite Lists (Empty/Full Pass/In progress)
 
-you can find all your empty suite in one list so it wont harm your Charts
+you can find all your empty, full passed and in progress suites in one list so it wont harm your Charts
 
 ![Layout Customization](images/F.png)
 
-# Singel Suite View
+# Pies Suite View - Total Test Plane / Selected Suite Isolated / Selected Suite include inner suites
 
-by clicking on one suite in the chrat, you get a Pie chart of this single suite
+by clicking on one suite in the chrat, you get two Pies chart of this single.
 
 ![Layout Customization](images/G.png)
+
+# Isolated/Include Sub Suites view
+
+using this toggle button you can switch the graph suite view
+
+![Layout Customization](images/M1.png)
+![Layout Customization](images/M2.png)
+
+# DrillDown into TestCases
+
+by clicking the selected suite pies, you can get a drill down view of the Test case in the state you select
+
+![Layout Customization](images/J.png)
 
 contact me avih75@gmail.com
