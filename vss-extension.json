@@ -75,6 +75,12 @@
     "content": {
         "details": {
             "path": "details.md"
+        },
+        "license": {
+            "path": "LICENSE.md"
+        },
+        "privacy": {
+            "path": "PRIVACY.md"
         }
     },
     "repository": {
@@ -84,6 +90,12 @@
     "links": {
         "support": {
             "uri": "https://github.com/avih75/AzureDevopsTest-Analysis/issues"
+        },
+        "license": {
+            "uri": "https://github.com/shayki5/azure-devops-create-pr-task/blob/master/LICENSE.md"
+        },
+        "privacypolicy": {
+            "uri": "https://github.com/shayki5/azure-devops-create-pr-task/blob/master/PRIVACY.md"
         },
         "learn": {
             "uri": "https://github.com/avih75/AzureDevopsTest-Analysis/blob/master/README.md"
