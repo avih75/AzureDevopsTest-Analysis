@@ -1062,7 +1062,7 @@ function DrillDown(selectedTests: string, suiteName: string, suiteId: number, is
         return;
     }
     $("#modalView").empty();
-    $("#modalTitle").text(suiteName + " " + selectedTests);
+    $("#modalTitle").text(suiteName + " " + selectedTests+" TestCases");
     modal.style.display = "block";
     let row = $("<tr/>"); 
     row.append($("<th/>").addClass("Hcell").append($("<label/>").addClass("Hcell").text("ID")));
