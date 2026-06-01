@@ -1,19 +1,16 @@
 {
-    "compilerOptions": {
-        "module": "amd",
-        "sourceMap": false,
-        "moduleResolution": "node",
-        "target": "es6",
-        "rootDir": "./scripts",
-        "types": [
-            "jquery",
-            "q",
-            "vss-web-extension-sdk"
-        ],
-        "lib": [
-            "dom",
-            "es5",
-            "es2015" 
-        ]
-    }
+  "compilerOptions": {
+    "target": "ES6",
+    "module": "commonjs",
+    "jsx": "react",
+    "strict": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "moduleResolution": "node",
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "lib": ["ES6", "dom"]
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

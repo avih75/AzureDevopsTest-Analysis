@@ -1,128 +1,62 @@
 {
-    "manifestVersion": 1,
-    "id": "Test-Analysis",
-    "version": "1.1.3",
-    "name": "Solution to Analizes your Tests",
-    "description": "Interactive Test Plan Analysis.",
-    "publisher": "AviHadad",
-    "categories": [
-        "Test"
-    ],
-    "targets": [{
-        "id": "Microsoft.VisualStudio.Services",
-        "version": "[16.0,)"
-    }],
-    "icons": {
-        "default": "images/logo.png"
+  "manifestVersion": 1,
+  "id": "Test-Analysis",
+  "version": "2.0.17",
+  "name": "Test Plan Analysis",
+  "description": "Interactive Test Plan Analysis — modern React UI.",
+  "publisher": "AviHadad",
+  "categories": [
+    "Test"
+  ],
+  "targets": [
+    {
+      "id": "Microsoft.VisualStudio.Services",
+      "version": "[16.0,)"
+    }
+  ],
+  "icons": {
+    "default": "images/logo.png"
+  },
+  "contributions": [
+    {
+      "id": "Test_Analysis",
+      "type": "ms.vss-web.hub",
+      "description": "Test Plan Analysis hub",
+      "targets": [
+        "ms.vss-test-web.test-hub-group"
+      ],
+      "properties": {
+        "name": "Analysis",
+        "order": 99,
+        "uri": "dist/Hub/Hub.html"
+      }
+    }
+  ],
+  "scopes": [
+    "vso.work",
+    "vso.test",
+    "vso.test_write"
+  ],
+  "tags": [
+    "Test Plan",
+    "Tests",
+    "Analysis",
+    "Graphs",
+    "Hub"
+  ],
+  "content": {
+    "details": {
+      "path": "README.md"
+    }
+  },
+  "files": [
+    {
+      "path": "dist",
+      "addressable": true
     },
-    "contributions": [{
-        "id": "Test_Analysis",
-        "type": "ms.vss-web.hub",
-        "description": "Adds a 'Analysis' hub to the test hub group.",
-        "targets": [
-            "ms.vss-test-web.test-hub-group"
-        ],
-        "properties": {
-            "name": "Analysis",
-            "order": 99,
-            "uri": "Test-Analysis.html",
-            "authenticationSchemes": [{
-                    "type": "ms.vss-endpoint.endpoint-auth-scheme-token"
-                },
-                {
-                    "type": "ms.vss-endpoint.endpoint-auth-scheme-basic",
-                    "inputDescriptors": [{
-                            "id": "username",
-                            "name": "Username",
-                            "description": "Username",
-                            "inputMode": "textbox",
-                            "validation": {
-                                "isRequired": false,
-                                "dataType": "string"
-                            }
-                        },
-                        {
-                            "id": "password",
-                            "name": "Password",
-                            "description": "Password",
-                            "inputMode": "passwordbox",
-                            "isConfidential": true,
-                            "validation": {
-                                "isRequired": false,
-                                "dataType": "string"
-                            }
-                        }
-                    ]
-                }
-            ]
-        }
-    }],
-    "scopes": [
-        "vso.work",
-        "vso.loadtest_write",
-        "vso.test",
-        "vso.test_write",
-        "vso.loadtest"
-    ],
-    "tags": [
-        "Test Plan",
-        "Tests",
-        "Analysis",
-        "Graphs",
-        "Points",
-        "Hub"
-    ],
-    "content": {
-        "details": {
-            "path": "details.md"
-        },
-        "license": {
-            "path": "LICENSE.md"
-        },
-        "privacy": {
-            "path": "PRIVACY.md"
-        }
-    },
-    "repository": {
-        "type": "git",
-        "uri": "https://github.com/avih75/AzureDevopsTest-Analysis"
-    },
-    "links": {
-        "support": {
-            "uri": "https://github.com/avih75/AzureDevopsTest-Analysis/issues"
-        },
-        "license": {
-            "uri": "https://github.com/avih75/AzureDevopsTest-Analysis/blob/master/LICENSE.md"
-        },
-        "privacypolicy": {
-            "uri": "https://github.com/avih75/AzureDevopsTest-Analysis/blob/master/PRIVACY.md"
-        },
-        "learn": {
-            "uri": "https://github.com/avih75/AzureDevopsTest-Analysis/blob/master/README.md"
-        },
-        "repository": {
-            "uri": "https://github.com/avih75/AzureDevopsTest-Analysis"
-        },
-        "issues": {
-            "uri": "https://github.com/avih75/AzureDevopsTest-Analysis/issues"
-        }
-    },
-    "files": [{
-            "path": "Test-Analysis.html",
-            "addressable": true
-        },
-        {
-            "path": "node_modules/vss-web-extension-sdk/lib",
-            "addressable": true,
-            "packagePath": "lib"
-        },
-        {
-            "path": "scripts",
-            "addressable": true
-        },
-        {
-            "path": "images",
-            "addressable": true
-        }
-    ]
+    {
+      "path": "images",
+      "addressable": true
+    }
+  ]
 }

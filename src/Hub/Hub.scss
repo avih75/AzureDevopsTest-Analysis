@@ -1,0 +1,115 @@
+/* Test Analysis Hub — global styles */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 14px;
+  background: var(--palette-neutral-0, #fff);
+  color: var(--palette-neutral-100, #323130);
+}
+
+.ta-hub {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.ta-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--palette-neutral-2, #f3f2f1);
+  border-bottom: 1px solid var(--palette-neutral-8, #edebe9);
+  flex-shrink: 0;
+
+  .ta-toolbar__title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--palette-neutral-100, #323130);
+    margin-right: 8px;
+  }
+
+  .ta-toolbar__spacer {
+    flex: 1;
+  }
+}
+
+.ta-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--palette-neutral-8, #edebe9);
+  background: var(--palette-neutral-0, #fff);
+  flex-shrink: 0;
+
+  .ta-tab {
+    padding: 10px 20px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--palette-neutral-60, #797775);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: color 0.15s, border-color 0.15s;
+    user-select: none;
+
+    &:hover {
+      color: var(--palette-neutral-100, #323130);
+      background: var(--palette-neutral-2, #f3f2f1);
+    }
+
+    &.ta-tab--active {
+      color: var(--communication-background, #0078d4);
+      border-bottom-color: var(--communication-background, #0078d4);
+    }
+  }
+}
+
+.ta-content {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+}
+
+.ta-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--status-error-background, #fde7e9);
+  color: var(--status-error, #a4262c);
+  border-radius: 3;
+  margin: 12px 0;
+  font-size: 13px;
+}
+
+.ta-btn {
+  padding: 5px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 3px;
+  border: 1px solid var(--palette-neutral-20, #c8c6c4);
+  background: var(--palette-neutral-0, #fff);
+  color: var(--palette-neutral-100, #323130);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--palette-neutral-4, #f3f2f1);
+  }
+}
+
+/* ADO-style row hover — works for both <tr> (table) and <div> (tree) */
+.ado-tr {
+  transition: background-color 0.08s ease;
+}
+.ado-tr:hover,
+.ado-tr:hover td {
+  background: var(--palette-neutral-8, #edebe9) !important;
+  transition: background-color 0.08s ease;
+}
