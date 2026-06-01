@@ -1,0 +1,76 @@
+﻿npm.cmd : npm info it worked if it ends with ok
+At line:1 char:1
++ & 'C:\Program Files\nodejs\npm.cmd' install --verbose *>&1 | Out-File ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (npm info it worked if it ends wit 
+   h ok:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+npm verb cli [
+npm verb cli   'C:\\Program Files\\nodejs\\node.exe',
+npm verb cli   
+'C:\\Users\\user\\AppData\\Roaming\\npm\\node_modules\\npm\\bin\\npm-cli.js',
+npm verb cli   'install',
+npm verb cli   '--verbose'
+npm verb cli ]
+npm info using npm@6.14.9
+npm info using node@v12.16.3
+npm verb npm-session 9123313b2ac7ab24
+npm info lifecycle test-analysis-v2@2.0.17~preinstall: test-analysis-v2@2.0.17
+npm timing stage:loadCurrentTree Completed in 1643ms
+npm timing stage:loadIdealTree:cloneCurrentTree Completed in 8ms
+npm WARN read-shrinkwrap This version of npm is compatible with 
+lockfileVersion@1, but package-lock.json was generated for lockfileVersion@3. 
+I'll try to do my best with it!
+npm timing stage:loadIdealTree:loadShrinkwrap Completed in 405ms
+npm http fetch GET 200 https://registry.npmjs.org/azure-devops-extension-api 
+193ms (from cache)
+npm http fetch GET 200 https://registry.npmjs.org/azure-devops-extension-sdk 
+195ms (from cache)
+npm http fetch GET 200 https://registry.npmjs.org/chart.js 194ms (from cache)
+npm http fetch GET 200 https://registry.npmjs.org/azure-devops-ui 718ms
+npm http fetch GET 200 
+https://registry.npmjs.org/azure-devops-ui/-/azure-devops-ui-2.272.0.tgz 344ms 
+(from cache)
+npm http fetch GET 200 
+https://registry.npmjs.org/chart.js/-/chart.js-4.5.1.tgz 908ms
+npm verb stack Error [ERR_STREAM_DESTROYED]: Cannot call write after a stream 
+was destroyed
+npm verb stack     at doWrite (_stream_writable.js:399:19)
+npm verb stack     at writeOrBuffer (_stream_writable.js:387:5)
+npm verb stack     at PassThrough.Writable.write (_stream_writable.js:318:11)
+npm verb stack     at WriteStream._worker (C:\Users\user\AppData\Roaming\npm\no
+de_modules\npm\node_modules\cacache\lib\content\write.js:60:17)
+npm verb stack     at WriteStream._write (C:\Users\user\AppData\Roaming\npm\nod
+e_modules\npm\node_modules\flush-write-stream\index.js:37:13)
+npm verb stack     at doWrite (C:\Users\user\AppData\Roaming\npm\node_modules\n
+pm\node_modules\flush-write-stream\node_modules\readable-stream\lib\_stream_wri
+table.js:428:64)
+npm verb stack     at writeOrBuffer (C:\Users\user\AppData\Roaming\npm\node_mod
+ules\npm\node_modules\flush-write-stream\node_modules\readable-stream\lib\_stre
+am_writable.js:417:5)
+npm verb stack     at WriteStream.Writable.write (C:\Users\user\AppData\Roaming
+\npm\node_modules\npm\node_modules\flush-write-stream\node_modules\readable-str
+eam\lib\_stream_writable.js:334:11)
+npm verb stack     at 
+WriteStream.contentStream.end.index.insert.opts.concat.size.size [as _worker] (
+C:\Users\user\AppData\Roaming\npm\node_modules\npm\node_modules\cacache\put.js:
+55:19)
+npm verb stack     at WriteStream._write (C:\Users\user\AppData\Roaming\npm\nod
+e_modules\npm\node_modules\flush-write-stream\index.js:37:13)
+npm verb stack     at doWrite (C:\Users\user\AppData\Roaming\npm\node_modules\n
+pm\node_modules\flush-write-stream\node_modules\readable-stream\lib\_stream_wri
+table.js:428:64)
+npm verb stack     at writeOrBuffer (C:\Users\user\AppData\Roaming\npm\node_mod
+ules\npm\node_modules\flush-write-stream\node_modules\readable-stream\lib\_stre
+am_writable.js:417:5)
+npm verb stack     at WriteStream.Writable.write (C:\Users\user\AppData\Roaming
+\npm\node_modules\npm\node_modules\flush-write-stream\node_modules\readable-str
+eam\lib\_stream_writable.js:334:11)
+npm verb stack     at WriteStream._worker (C:\Users\user\AppData\Roaming\npm\no
+de_modules\npm\node_modules\make-fetch-happen\cache.js:167:25)
+npm verb stack     at WriteStream._write (C:\Users\user\AppData\Roaming\npm\nod
+e_modules\npm\node_modules\flush-write-stream\index.js:37:13)
+npm verb stack     at doWrite (C:\Users\user\AppData\Roaming\npm\node_modules\n
+pm\node_modules\flush-write-stream\node_modules\readable-stream\lib\_stream_wri
+table.js:428:64)

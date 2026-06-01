@@ -1,52 +1,127 @@
 import * as SDK from "azure-devops-extension-sdk";
-import {
-  TestPlanSummary,
-  TestPlanInfo,
-  SuiteStats,
-  TestPointDetail,
-  TestOutcome,
-} from "../types";
+import { getClient } from "azure-devops-extension-api";
+import { TestPlanRestClient } from "azure-devops-extension-api/TestPlan/TestPlanClient";
+import { WorkItemTrackingRestClient } from "azure-devops-extension-api/WorkItemTracking/WorkItemTrackingClient";
+import { TestPlanSummary, TestPlanInfo, SuiteStats, TestPointDetail, TestOutcome } from "../types";
 
 // ── Base URL ──────────────────────────────────────────────────────────────────
 
 let _baseUrl: string | null = null;
 
+async function getTestPlanClient(): Promise<TestPlanRestClient> {
+  await SDK.ready();
+  return getClient(TestPlanRestClient);
+}
+
+async function getWorkItemTrackingClient(): Promise<WorkItemTrackingRestClient> {
+  await SDK.ready();
+  return getClient(WorkItemTrackingRestClient);
+}
+
+async function getAccessToken(): Promise<string> {
+  await SDK.ready();
+  const token = await SDK.getAccessToken();
+  console.log(`[TestAnalysis] getAccessToken() tokenLength=${token?.length}`);
+  return token;
+}
+
 async function getBaseUrl(): Promise<string> {
   if (_baseUrl) return _baseUrl;
   await SDK.ready();
-  const ctx = SDK.getWebContext();
   const host = SDK.getHost();
+  const ref = document.referrer || "";
+  const origin = window.location.origin;
+  const pathname = window.location.pathname;
 
-  // Strategy 1: SDK collection URI — correct for both cloud and on-prem (includes /tfs/ prefix)
-  const sdkUri: string = ((ctx as any)?.collection?.uri ?? (ctx as any)?.account?.uri ?? "").replace(/\/$/, "");
+  console.log(
+    `[TestAnalysis] getBaseUrl() host=`,
+    host,
+    `origin=${origin}`,
+    `pathname=${pathname}`,
+    `referrer=${ref}`
+  );
 
-  // Strategy 2: Parse referrer — split at /_apps/ and strip the trailing project segment
-  let referrerBase = "";
-  const referrer = document.referrer || "";
-  if (referrer) {
-    try {
-      const appsIdx = referrer.indexOf("/_apps/");
-      if (appsIdx > 0) {
-        const beforeApps = referrer.substring(0, appsIdx);
-        const lastSlash  = beforeApps.lastIndexOf("/");
-        referrerBase = beforeApps.substring(0, lastSlash);
-      }
-    } catch { /* ignore */ }
+  // Prefer host info for Azure DevOps Services.
+  if (host?.isHosted && host.name) {
+    _baseUrl = `https://dev.azure.com/${host.name}`;
+    console.log(`[TestAnalysis] getBaseUrl() using hosted host: ${_baseUrl}`);
+    return _baseUrl!;
   }
 
-  // Strategy 3: origin + host.name (fails when TFS has a virtual dir prefix like /tfs/)
-  const hostBase = host?.name ? `${window.location.origin}/${host.name}` : "";
+  // If the extension is loaded from the marketplace CDN, the referrer will
+  // point back to the Azure DevOps portal. Prefer extracting org from referrer.
+  if (ref) {
+    try {
+      const devMatch = ref.match(/^https?:\/\/dev\.azure\.com\/([^\/]+)/i);
+      if (devMatch) {
+        _baseUrl = `https://dev.azure.com/${devMatch[1]}`;
+        console.log(`[TestAnalysis] getBaseUrl() using referrer dev.azure.com: ${_baseUrl}`);
+        return _baseUrl!;
+      }
+      const vsMatch = ref.match(/^https?:\/\/([^\.]+)\.visualstudio\.com/i);
+      if (vsMatch) {
+        _baseUrl = `https://${vsMatch[1]}.visualstudio.com`;
+        console.log(`[TestAnalysis] getBaseUrl() using referrer visualstudio.com: ${_baseUrl}`);
+        return _baseUrl!;
+      }
 
-  _baseUrl = sdkUri || referrerBase || hostBase;
-  return _baseUrl;
+      const appsIdx = ref.indexOf("/_apps/");
+      if (appsIdx > 0) {
+        const beforeApps = ref.substring(0, appsIdx);
+        const lastSlash = beforeApps.lastIndexOf("/");
+        if (lastSlash > 8) {
+          _baseUrl = beforeApps.substring(0, lastSlash);
+          console.log(`[TestAnalysis] getBaseUrl() using referrer /_apps/ parse: ${_baseUrl}`);
+          return _baseUrl!;
+        }
+      }
+    } catch (e) {
+      console.warn("[TestAnalysis] getBaseUrl() referrer parse failed", e);
+    }
+  }
+
+  // On-prem URL fallback using host name, but avoid CDN origin.
+  if (host?.name) {
+    if (!origin.includes("gallerycdn.vsassets.io")) {
+      _baseUrl = `${origin}/${host.name}`.replace(/\/$/, "");
+      console.log(`[TestAnalysis] getBaseUrl() using origin + host.name: ${_baseUrl}`);
+      return _baseUrl!;
+    }
+    console.log("[TestAnalysis] getBaseUrl() skipping origin fallback because current origin is CDN");
+  }
+
+  // As a final fallback, use the current origin.
+  _baseUrl = origin;
+  console.log(`[TestAnalysis] getBaseUrl() using origin fallback: ${_baseUrl}`);
+  return _baseUrl!;
+}
+
+async function authFetch(url: string, init?: RequestInit): Promise<Response> {
+  const token = await getAccessToken();
+  const headers = {
+    Accept: "application/json",
+    Authorization: `Bearer ${token}`,
+    ...(init?.headers as Record<string, string>),
+  };
+
+  return fetch(url, {
+    ...init,
+    mode: "cors",
+    credentials: "omit",
+    headers,
+  });
 }
 
 async function apiFetch<T>(url: string): Promise<T> {
-  const res = await fetch(url, {
-    credentials: "include",
-    headers: { Accept: "application/json" },
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText} — ${url}`);
+  const res = await authFetch(url);
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(
+      `HTTP ${res.status} ${res.statusText} — ${url}${body ? `\n${body}` : ""}`
+    );
+  }
+
   return res.json() as Promise<T>;
 }
 
@@ -67,22 +142,21 @@ function mapOutcome(outcome: string | number | undefined): TestOutcome {
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export async function loadPlans(project: string): Promise<TestPlanSummary[]> {
-  const base = await getBaseUrl();
-  const url = `${base}/${encodeURIComponent(project)}/_apis/testplan/plans?api-version=5.0`;
-  const data = await apiFetch<{ value: any[] }>(url);
-  return (data.value || []).map((p: any) => ({ id: p.id, name: p.name }));
+  const client = await getTestPlanClient();
+  const plans = await client.getTestPlans(project, undefined, undefined, false, false);
+  console.log(`[TestAnalysis] loadPlans() project=${project} count=${plans.length}`);
+  return plans.map((p: any) => ({ id: p.id, name: p.name || "" }));
 }
 
 export async function loadPlanInfo(
   project: string,
   planId: number
 ): Promise<TestPlanInfo> {
-  const base = await getBaseUrl();
-  const url = `${base}/${encodeURIComponent(project)}/_apis/testplan/plans/${planId}?api-version=5.0`;
-  const p = await apiFetch<any>(url);
+  const client = await getTestPlanClient();
+  const p = await client.getTestPlanById(project, planId);
   return {
     id: p.id,
-    name: p.name,
+    name: p.name || "",
     state: p.state || "",
     area: p.areaPath || "",
     iteration: p.iteration || "",
@@ -94,31 +168,21 @@ export async function loadSuiteStats(
   project: string,
   planId: number
 ): Promise<SuiteStats[]> {
+  const testPlanClient = await getTestPlanClient();
+  const workItemClient = await getWorkItemTrackingClient();
   const base = await getBaseUrl();
-  const enc  = encodeURIComponent(project);
+  const enc = encodeURIComponent(project);
 
   // Step 1: fetch all suites
-  const suitesUrl = `${base}/${enc}/_apis/testplan/Plans/${planId}/suites?api-version=5.2-preview.1`;
-  const suitesData = await apiFetch<{ value: any[] }>(suitesUrl);
-  const suites: any[] = suitesData.value || [];
+  const suites = await testPlanClient.getTestSuitesForPlan(project, planId, undefined, undefined, false);
   console.log(`[TestAnalysis] ${suites.length} suite(s) for plan ${planId}`);
 
   // Step 2: fetch points for each suite in parallel
   const suitePointsPairs = await Promise.all(
     suites.map(async (suite: any) => {
-      let allPoints: any[] = [];
-      let continuationToken: string | null = null;
-      do {
-        const tokenParam: string = continuationToken ? `&continuationToken=${continuationToken}` : "";
-        const ptUrl: string = `${base}/${enc}/_apis/testplan/Plans/${planId}/Suites/${suite.id}/TestPoint?returnIdentityRef=true&includePointDetails=true&api-version=5.2-preview.2${tokenParam}`;
-        const res: Response = await fetch(ptUrl, { credentials: "include", headers: { Accept: "application/json" } });
-        if (!res.ok) break;
-        continuationToken = res.headers.get("x-ms-continuationtoken");
-        const data = await res.json() as { value: any[] };
-        allPoints = allPoints.concat(data.value || []);
-      } while (continuationToken);
-      console.log(`  suite "${suite.name}" (${suite.id}): ${allPoints.length} point(s)`);
-      return { suite, points: allPoints };
+      const points = await testPlanClient.getPoints(project, planId, suite.id, "", true, true);
+      console.log(`  suite "${suite.name}" (${suite.id}): ${points.length} point(s)`);
+      return { suite, points };
     })
   );
 
@@ -135,9 +199,8 @@ export async function loadSuiteStats(
     try {
       for (let i = 0; i < allTcIds.length; i += 200) {
         const ids = allTcIds.slice(i, i + 200);
-        const wiUrl = `${base}/${enc}/_apis/wit/workitems?ids=${ids.join(",")}&fields=System.Title&api-version=5.0`;
-        const wiData = await apiFetch<{ value: any[] }>(wiUrl);
-        (wiData.value || []).forEach((wi: any) => {
+        const workItems = await workItemClient.getWorkItems(ids, project, ["System.Title"]);
+        workItems.forEach((wi: any) => {
           if (wi?.id) wiMap.set(wi.id, wi.fields?.["System.Title"] || "");
         });
       }
@@ -145,7 +208,7 @@ export async function loadSuiteStats(
   }
 
   // Step 4: fetch failed step details for Failed/Blocked points
-  const failedStepMap = new Map<number, string>(); // keyed by point id
+  const failedStepMap = new Map<number, string>();
   const failedPoints = suitePointsPairs
     .flatMap(({ points }) => points)
     .filter((p: any) => {
